@@ -1015,6 +1015,7 @@ var DUMMY = {
     {k:['limpar','limpeza','filtro'],r:'Limpeza diária: 1) Drenar água do tanque. 2) Remover e limpar filtros horizontais. 3) Limpar interior com água limpa. 4) Limpar filtro de segurança da bomba. 5) Fechar válvula de drenagem. Não usar produtos com cloro.'},
     {k:['manutenção','manutencao','preventiva'],r:'Manutenção preventiva: Diária — limpeza de filtros. Semanal — inspecção de bicos e sensores. Mensal — limpeza de bicos e análise de pressão. Trimestral — descalcificação e lubrificação da bomba. Anual — substituição de vedações.'},
     {k:['vídeo','video','purga','peristáltica'],r:'Para purgar o doseador: aceda às definições do equipamento → Calibrações → Dosagem → prima o botão de calibração. Aparece QR code com o procedimento completo. Execute 3 medições para calcular a capacidade média da bomba.'},
+    {k:['manual','acessar','qr','código'],r:'Manual técnico — Aceda ao manual digitalizando o código QR que aparece nos alarmes. O código QR está disponível em cada página de erro no painel e também pode ser solicitado às definições. Compatível com qualquer smartphone.'},
     {k:['emergência','emergencia','vermelho','parar'],r:'Botão de emergência activo (M317). Para retomar: 1) Resolva a causa da emergência. 2) Rode o botão vermelho para a direita. 3) Prima RESET no ecrã táctil. O programa terá de ser reiniciado do início.'},
     {k:['contacto','telefone','somengil','suporte'],r:'Serviço técnico SOMENGIL: Telefone +351 234797344 · Email info@somengil.com · Morada: Zona Industrial de Vagos, Lote 41, 3840-385 Vagos, Portugal.'}
   ],
@@ -1024,24 +1025,43 @@ var DUMMY = {
     {k:['m308','rotation','rotating','platform'],r:'Alarm M308 — Rotating platform jam. Switch off and check for any object blocking rotation inside. After removing obstruction, restart.'},
     {k:['clean','cleaning','filter'],r:'Daily cleaning: 1) Drain tank water. 2) Remove and clean horizontal filters. 3) Clean interior with clean water. 4) Clean pump safety filter. 5) Close drain valve. Do not use chlorine products.'},
     {k:['maintenance','preventive'],r:'Preventive maintenance: Daily — filter cleaning. Weekly — nozzle and sensor inspection. Monthly — nozzle cleaning and pressure analysis. Quarterly — descaling and pump lubrication. Yearly — seal replacement.'},
+    {k:['manual','access','qr','code'],r:'Technical manual — Access the manual by scanning the QR code that appears in alarms. The QR code is available on each error page in the dashboard and can also be requested from settings. Compatible with any smartphone.'},
     {k:['contact','phone','somengil','support'],r:'SOMENGIL technical support: Phone +351 234797344 · Email info@somengil.com · Address: Zona Industrial de Vagos, Lote 41, 3840-385 Vagos, Portugal.'}
   ],
   fr:[
     {k:['m311','détergent','doseur'],r:'Alarme M311 — Niveau de détergent bas. Remplissez le réservoir et vérifiez que le tuyau d\'aspiration est immergé. Effectuez un cycle de purge après remplissage.'},
     {k:['nettoyage','filtre','nettoyer'],r:'Nettoyage quotidien: 1) Vider le réservoir. 2) Nettoyer les filtres. 3) Nettoyer l\'intérieur. 4) Nettoyer le filtre de la pompe. 5) Fermer la vanne. Ne pas utiliser de produits chlorés.'},
+    {k:['manuel','accéder','qr','code'],r:'Manuel technique — Accédez au manuel en scannant le code QR qui apparaît dans les alarmes. Le code QR est disponible sur chaque page d\'erreur du tableau de bord et peut également être demandé dans les paramètres. Compatible avec tout smartphone.'},
     {k:['contact','somengil'],r:'Support technique SOMENGIL: Téléphone +351 234797344 · Email info@somengil.com'}
   ],
   es:[
     {k:['m311','detergente','dosificador'],r:'Alarma M311 — Nivel de detergente bajo. Rellene el depósito y verifique que la manguera de aspiración está sumergida. Tras el reabastecimiento, realice un ciclo de purga.'},
     {k:['limpieza','filtro','limpiar'],r:'Limpieza diaria: 1) Drenar agua del tanque. 2) Limpiar filtros. 3) Limpiar interior. 4) Limpiar filtro de la bomba. 5) Cerrar válvula. No usar productos con cloro.'},
+    {k:['manual','acceder','qr','código'],r:'Manual técnico — Acceda al manual escaneando el código QR que aparece en las alarmas. El código QR está disponible en cada página de error del panel de control y también se puede solicitar desde la configuración. Compatible con cualquier smartphone.'},
     {k:['contacto','somengil'],r:'Soporte técnico SOMENGIL: Teléfono +351 234797344 · Email info@somengil.com'}
   ]
 };
 var EXAMPLES = {
-  pt:['Como limpar os filtros?','O que é o alarme M311?','Como fazer manutenção?'],
-  en:['How to clean the filters?','What is alarm M311?','How to perform maintenance?'],
-  fr:['Comment nettoyer les filtres?','Qu\'est-ce que l\'alarme M311?','Comment faire la maintenance?'],
-  es:['¿Cómo limpiar los filtros?','¿Qué es la alarma M311?','¿Cómo hacer mantenimiento?']
+  pt:[
+    'Como limpar os filtros?', 'O que é o alarme M311?', 'Como fazer manutenção?',
+    'Como acessar o manual?', 'O doseador não funciona', 'Temperatura elevada na caldeira',
+    'Como purgar á bomba?', 'Nível de detergente baixo', 'Erro enchimento tanque'
+  ],
+  en:[
+    'How to clean the filters?', 'What is alarm M311?', 'How to perform maintenance?',
+    'How to access the manual?', 'Doser is not working', 'High boiler temperature',
+    'How to purge the pump?', 'Low detergent level', 'Tank filling error'
+  ],
+  fr:[
+    'Comment nettoyer les filtres?', 'Qu\'est-ce que l\'alarme M311?', 'Comment faire la maintenance?',
+    'Comment accéder au manuel?', 'Le doseur ne fonctionne pas', 'Température chaudière élevée',
+    'Comment purger la pompe?', 'Niveau détergent bas', 'Erreur remplissage réservoir'
+  ],
+  es:[
+    '¿Cómo limpiar los filtros?', '¿Qué es la alarma M311?', '¿Cómo hacer mantenimiento?',
+    '¿Cómo acceder al manual?', 'El dosificador no funciona', 'Temperatura caldera alta',
+    '¿Cómo purgar la bomba?', 'Nivel detergente bajo', 'Error llenado depósito'
+  ]
 };
 
 function getDummyResponse(q){
@@ -1078,14 +1098,13 @@ function spSend(){
   $('sp-input').value='';
   $('sp-send').disabled=true;
   if(spWelcomeEl&&spWelcomeEl.parentNode){ spWelcomeEl.parentNode.removeChild(spWelcomeEl); spWelcomeEl=null; }
-  var examplesEl = $('sp-examples');
-  if(examplesEl&&examplesEl.parentNode) examplesEl.parentNode.removeChild(examplesEl);
   spAddMsg(q,'user');
   var thinking=spAddMsg(t('sp_think'),'ai','thinking');
   var delay=1500+Math.random()*1500;
   setTimeout(function(){
     if(thinking.parentNode) thinking.parentNode.removeChild(thinking);
     spAddMsg(getDummyResponse(q),'ai');
+    randomizeExamples();
     $('sp-send').disabled=false;
     $('sp-input').focus();
   },delay);
@@ -1100,13 +1119,23 @@ $('sp-send').addEventListener('click',spSend);
 $('sp-input').addEventListener('keydown',function(e){ if(e.key==='Enter') spSend(); });
 
 /* Support Panel Example Questions */
+function getRandomExamples(count){
+  var examples = EXAMPLES[currentLang] || EXAMPLES.pt;
+  var shuffled = examples.slice().sort(function(){ return Math.random() - 0.5; });
+  return shuffled.slice(0, count);
+}
+
 function updateExampleQuestions(lang){
-  var examples = EXAMPLES[lang] || EXAMPLES.pt;
+  randomizeExamples();
+}
+
+function randomizeExamples(){
+  var selected = getRandomExamples(3);
   var btns = document.querySelectorAll('.sp-example-btn');
   btns.forEach(function(btn, idx){
-    if(idx < examples.length){
-      btn.setAttribute('data-example', examples[idx]);
-      btn.textContent = ['🔧','⚠️','🛠️'][idx] + ' ' + examples[idx];
+    if(idx < selected.length){
+      btn.setAttribute('data-example', selected[idx]);
+      btn.textContent = ['🔧','⚠️','🛠️'][idx] + ' ' + selected[idx];
     }
   });
 }
