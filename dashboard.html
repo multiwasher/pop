@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MULTIWASHER · Painel Operacional</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#f4f3f0;font-family:'SF Mono','Fira Mono',monospace;color:#1a1a1a;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-bottom:1px solid #e8e6e1}
+.top-l{font-size:10px;color:#777;letter-spacing:2px;text-transform:uppercase}
+.top-r{font-size:20px;letter-spacing:4px;color:#1a1a1a}
+.top-actions{display:flex;align-items:center;gap:12px}
+.btn-settings{background:none;border:1px solid #e8e6e1;border-radius:4px;padding:5px 10px;font-size:10px;color:#666;font-family:'SF Mono','Fira Mono',monospace;letter-spacing:1px;cursor:pointer;transition:border-color .15s,color .15s}
+.btn-settings:hover{border-color:#777;color:#555}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-bottom:1px solid #e8e6e1}
+.k{padding:16px 20px;border-right:1px solid #e8e6e1}
+.k:last-child{border-right:none}
+.k-l{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.k-v{font-size:36px;font-weight:400;line-height:1}
+.k-d{font-size:10px;margin-top:5px}
+.up{color:#1a8f6b}.dn{color:#c0392b}
+.body{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;flex:1}
+.card{background:#fff;border-radius:6px;border:1px solid #e8e6e1;padding:16px;display:flex;flex-direction:column}
+.c-label{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.alarm-list{display:flex;flex-direction:column;gap:6px}
+.alarm{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:4px;border-left:3px solid transparent;cursor:pointer;transition:opacity .15s}
+.alarm:active{opacity:.7}
+.alarm.crit{background:#fdf4f4;border-color:#c0392b}
+.alarm.warn{background:#fdf8f0;border-color:#c2720a}
+.alarm.info{background:#f4f9f7;border-color:#1a8f6b}
+.alarm-time{font-size:9px;color:#777;width:38px;flex-shrink:0}
+.alarm-mach{font-size:9px;font-weight:500;width:28px;flex-shrink:0}
+.alarm.crit .alarm-mach{color:#c0392b}
+.alarm.warn .alarm-mach{color:#c2720a}
+.alarm.info .alarm-mach{color:#1a8f6b}
+.alarm-msg{font-size:10px;color:#444;flex:1}
+.alarm-badge{font-size:8px;letter-spacing:1px;padding:2px 6px;border-radius:2px;flex-shrink:0}
+.alarm.crit .alarm-badge{background:#f7c1c1;color:#791f1f}
+.alarm.warn .alarm-badge{background:#fac775;color:#412402}
+.alarm.info .alarm-badge{background:#9fe1cb;color:#04342c}
+.chart-wrap{position:relative;flex:1;min-height:100px}
+.bottom{padding:8px 20px;background:#fff;border-top:1px solid #e8e6e1;display:flex;justify-content:space-between;align-items:center}
+.b-l{font-size:10px;color:#888;letter-spacing:1px}
+.dot{width:5px;height:5px;border-radius:50%;background:#1a8f6b;display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+/* alarm modal */
+.modal{background:#fff;border-radius:8px;border:1px solid #e8e6e1;padding:24px;position:relative}
+.modal-close{position:absolute;top:14px;right:16px;font-size:16px;color:#777;cursor:pointer;background:none;border:none;padding:4px 8px;font-family:inherit}
+.modal-close:active{opacity:.5}
+.modal-level{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.modal-title{font-size:16px;font-weight:500;color:#1a1a1a;margin-bottom:4px}
+.modal-mach{font-size:11px;color:#666;margin-bottom:16px}
+.modal-desc{font-size:12px;color:#555;line-height:1.7;margin-bottom:16px;padding:12px;background:#f9f8f6;border-radius:4px;border-left:3px solid #e0ddd8}
+.modal-video-wrap{margin-bottom:20px}
+.modal-video-label{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.modal-video-frame{width:100%;aspect-ratio:16/9;border:1px solid #e8e6e1;border-radius:4px;background:#f4f3f0}
+.modal-qr-row{display:flex;align-items:center;gap:16px;padding-top:16px;border-top:1px solid #f0eeea}
+.modal-qr-text{flex:1}
+.modal-qr-label{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.modal-qr-sub{font-size:10px;color:#888;line-height:1.5}
+/* login modal */
+.login-modal{background:#fff;border-radius:8px;border:1px solid #e8e6e1;width:300px;padding:28px;position:relative}
+.login-title{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.l-field{display:flex;align-items:center;gap:8px;border:1px solid #e8e6e1;border-radius:4px;padding:0 12px;background:#fafaf9;margin-bottom:10px;transition:border-color .15s}
+.l-field:focus-within{border-color:#666}
+.l-field-icon{font-size:11px;color:#888;width:14px}
+.l-field input{flex:1;border:none;background:none;font-family:'SF Mono','Fira Mono',monospace;font-size:12px;color:#1a1a1a;padding:10px 0;outline:none}
+.l-field input::placeholder{color:#888}
+.l-error{font-size:10px;color:#c0392b;min-height:16px;margin-bottom:12px;letter-spacing:.5px}
+.btn-login{width:100%;background:#1a1a1a;border:none;border-radius:4px;padding:10px;font-size:10px;color:#fff;font-family:'SF Mono','Fira Mono',monospace;letter-spacing:2px;cursor:pointer;transition:opacity .15s}
+.btn-login:hover{opacity:.8}
+.btn-login:active{opacity:.6}
+/* settings modal */
+.settings-modal{background:#fff;border-radius:8px;border:1px solid #e8e6e1;width:360px;padding:28px;position:relative}
+.s-title{font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.s-section{margin-bottom:22px}
+.s-label{font-size:9px;color:#777;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.s-field{display:flex;align-items:center;gap:8px;border:1px solid #e8e6e1;border-radius:4px;padding:0 12px;background:#fafaf9;transition:border-color .15s}
+.s-field:focus-within{border-color:#666}
+.s-field input{flex:1;border:none;background:none;font-family:'SF Mono','Fira Mono',monospace;font-size:12px;color:#1a1a1a;padding:10px 0;outline:none}
+.s-field input::placeholder{color:#888}
+.s-field-icon{font-size:12px;color:#888}
+.s-toggle{font-size:10px;color:#666;cursor:pointer;padding:2px;letter-spacing:1px;background:none;border:none;font-family:inherit}
+.s-toggle:hover{color:#555}
+.s-status{font-size:10px;margin-top:8px;min-height:14px}
+.s-status.ok{color:#1a8f6b}
+.s-status.er{color:#c0392b}
+.s-status.info{color:#666}
+.s-divider{border:none;border-top:1px solid #f0eeea;margin:4px 0 22px}
+.s-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.s-key{font-size:10px;color:#666}
+.s-val{font-size:10px;color:#555;font-family:'SF Mono','Fira Mono',monospace}
+.s-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:24px}
+.btn-cancel{background:none;border:1px solid #e8e6e1;border-radius:4px;padding:8px 16px;font-size:10px;color:#666;font-family:'SF Mono','Fira Mono',monospace;letter-spacing:1px;cursor:pointer}
+.btn-save{background:#1a1a1a;border:1px solid #1a1a1a;border-radius:4px;padding:8px 16px;font-size:10px;color:#fff;font-family:'SF Mono','Fira Mono',monospace;letter-spacing:1px;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.8}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="top-l">MULTIWASHER · painel operacional</span>
+  <span class="top-r" id="clk">--:--</span>
+  <div class="top-actions">
+    <span class="top-l" id="dt">--/--</span>
+    <button class="btn-settings" id="btn-settings">⚙ definições</button>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="k">
+    <div class="k-l">ciclos hoje</div>
+    <div class="k-v up" id="kpi-ciclos">—</div>
+    <div class="k-d up" id="kpi-ciclos-d">—</div>
+  </div>
+  <div class="k">
+    <div class="k-l">duração média</div>
+    <div class="k-v" id="kpi-dur">—</div>
+    <div class="k-d up" id="kpi-dur-d">—</div>
+  </div>
+  <div class="k">
+    <div class="k-l">máquinas ativas</div>
+    <div class="k-v" id="kpi-mach">—</div>
+    <div class="k-d dn" id="kpi-mach-d">—</div>
+  </div>
+</div>
+
+<div class="body">
+  <div class="card">
+    <div class="c-label">alarmes — hoje <span style="color:#ddd;font-size:8px;margin-left:8px;letter-spacing:1px">toca para detalhes</span></div>
+    <div class="alarm-list" id="alarm-list"></div>
+  </div>
+  <div class="card">
+    <div class="c-label">ciclos — últimos 7 dias</div>
+    <div class="chart-wrap"><canvas id="weekChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="c-label">programas hoje</div>
+    <div class="chart-wrap"><canvas id="progChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="c-label">consumo médio / ciclo</div>
+    <div class="chart-wrap"><canvas id="consChart"></canvas></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <span class="b-l"><span class="dot"></span>online · atualiza 30s</span>
+  <span class="b-l" id="date2"></span>
+</div>
+
+<!-- alarm modal -->
+<div class="overlay" id="alarm-overlay">
+  <div class="modal" style="width:480px;max-width:95vw">
+    <button class="modal-close" id="alarm-close">✕</button>
+    <div class="modal-level" id="m-level"></div>
+    <div class="modal-title" id="m-title"></div>
+    <div class="modal-mach" id="m-mach"></div>
+    <div class="modal-desc" id="m-desc"></div>
+    <div class="modal-video-wrap" id="m-video-wrap" style="display:none">
+      <div class="modal-video-label">vídeo de assistência</div>
+      <video id="m-video" class="modal-video-frame" controls playsinline style="border-radius:4px;background:#000"></video>
+    </div>
+    <div class="modal-qr-row">
+      <div id="qr-canvas"></div>
+      <div class="modal-qr-text">
+        <div class="modal-qr-label">manual técnico</div>
+        <div class="modal-qr-sub">digitaliza o QR code para aceder ao manual de assistência e procedimentos de resolução.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- login modal -->
+<div class="overlay" id="login-overlay">
+  <div class="login-modal" id="login-modal">
+    <div class="login-title">acesso restrito</div>
+    <div class="l-field">
+      <span class="l-field-icon">◎</span>
+      <input type="text" id="l-user" placeholder="utilizador" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="l-field">
+      <span class="l-field-icon">◈</span>
+      <input type="password" id="l-pass" placeholder="password" autocomplete="off">
+    </div>
+    <div class="l-error" id="l-error"></div>
+    <button class="btn-login" id="btn-login">entrar</button>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div class="overlay" id="settings-overlay">
+  <div class="settings-modal">
+    <button class="modal-close" id="settings-close">✕</button>
+    <div class="s-title">definições do equipamento</div>
+    <div class="s-section">
+      <div class="s-label">rede wifi</div>
+      <div class="s-field">
+        <span class="s-field-icon">◎</span>
+        <input type="text" id="wifi-ssid" placeholder="nome da rede (SSID)" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="s-field" style="margin-top:8px">
+        <span class="s-field-icon">◈</span>
+        <input type="password" id="wifi-pass" placeholder="password" autocomplete="off">
+        <button class="s-toggle" id="toggle-pass">mostrar</button>
+      </div>
+      <div class="s-status info" id="wifi-status">não configurado</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section">
+      <div class="s-label">equipamento</div>
+      <div class="s-field">
+        <span class="s-field-icon">◇</span>
+        <input type="text" id="serial-input" placeholder="número de série  ex: MW-2024-00142" autocomplete="off" spellcheck="false" style="text-transform:uppercase">
+      </div>
+      <div class="s-status info" id="serial-status">não registado</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section" style="margin-bottom:0">
+      <div class="s-label">estado atual</div>
+      <div class="s-row"><span class="s-key">rede guardada</span><span class="s-val" id="disp-ssid">—</span></div>
+      <div class="s-row"><span class="s-key">nº de série</span><span class="s-val" id="disp-serial">—</span></div>
+      <div class="s-row"><span class="s-key">versão firmware</span><span class="s-val">v2.4.1</span></div>
+    </div>
+    <div class="s-actions">
+      <button class="btn-cancel" id="settings-cancel">cancelar</button>
+      <button class="btn-save" id="settings-save">guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+
+/* ─────────────────────────────────────────────
+   CREDENCIAIS DE ACESSO ÀS DEFINIÇÕES
+   ───────────────────────────────────────────── */
+var CREDS = { user: 'admin', pass: '2002002' };
+
+/* ─────────────────────────────────────────────
+   URLs DE RECURSOS
+   ───────────────────────────────────────────── */
+var QR_URL    = 'https://drive.google.com/file/d/18wBcNLoBij6YiaV6LYUKWTjJC_8TFevg/view?usp=sharing';
+var VIDEO_DOSEADOR = 'https://video.wixstatic.com/video/a6967f_6e5f6454b9b146149f39d87ca09556f5/480p/mp4/file.mp4';
+
+/* ─────────────────────────────────────────────
+   DADOS — substitui por chamadas à tua API/DB
+   ───────────────────────────────────────────── */
+var DATA = {
+  kpis: {
+    ciclosHoje: 142, ciclosDelta: '+12 vs ontem',
+    duracaoMedia: 47, duracaoDelta: '−3 min vs média',
+    maquinasAtivas: 8, maquinasTotal: 10, avarias: 1
+  },
+  alarmes: [
+    { time:'08:14', mach:'M-09', msg:'falha de bomba de circulação',    level:'crit', video: null,
+      desc:'A bomba de circulação principal não respondeu ao arranque. Possível causa: condensador do motor danificado, sobrecarga térmica ativada ou falha de alimentação elétrica. Verificar quadro elétrico e relé térmico antes de reiniciar.' },
+    { time:'09:02', mach:'M-05', msg:'temperatura abaixo do setpoint',  level:'warn', video: null,
+      desc:'A temperatura de lavagem ficou abaixo do valor configurado durante o ciclo. Possível causa: resistência de aquecimento com desempenho reduzido ou válvula de entrada de água fria com fuga. Verificar resistência e termostato.' },
+    { time:'09:47', mach:'M-02', msg:'falha no doseador de detergente',  level:'warn', video: VIDEO_DOSEADOR,
+      desc:'O doseador não injetou a quantidade programada de detergente. Pode indicar bomba peristáltica desgastada, tubagem obstruída ou reservatório vazio. Consultar o vídeo de assistência abaixo para o procedimento de verificação.' },
+    { time:'10:31', mach:'M-07', msg:'manutenção preventiva em 3 dias', level:'info', video: null,
+      desc:'Aviso automático de manutenção programada. Atingiu 450 horas de operação. Prevista substituição de juntas, limpeza de braços aspersor e verificação de rolamentos. Agendar paragem com o técnico.' },
+    { time:'11:15', mach:'M-01', msg:'filtro — limpeza recomendada',    level:'info', video: null,
+      desc:'O sensor de diferencial de pressão indica acumulação no filtro de resíduos. Recomenda-se limpeza do cesto filtrante para evitar perda de eficiência de lavagem. Procedimento rápido, sem necessidade de paragem prolongada.' }
+  ],
+  ciclosSemana: [118, 130, 124, 141, 109, 136, 142],
+  programas: { labels:['gastronormas','tabuleiros','panelas','facas/utens.'], data:[58,42,24,18] },
+  consumos:  { labels:['água','energia','detergente','amaciador'],            data:[38,31,19,12] }
+};
+
+var levelLabel = { crit:'crítico', warn:'aviso', info:'info' };
+var levelColor  = { crit:'#c0392b', warn:'#c2720a', info:'#1a8f6b' };
+
+/* ─── relógio ─── */
+function tick() {
+  var n = new Date();
+  document.getElementById('clk').textContent   = n.toTimeString().slice(0,5);
+  document.getElementById('dt').textContent    = n.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+  document.getElementById('date2').textContent = n.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'long'});
+}
+tick(); setInterval(tick, 1000);
+
+/* ─── KPIs ─── */
+var d = DATA.kpis;
+document.getElementById('kpi-ciclos').innerHTML   = d.ciclosHoje;
+document.getElementById('kpi-ciclos-d').textContent = d.ciclosDelta;
+document.getElementById('kpi-dur').innerHTML     = d.duracaoMedia + ' <span style="font-size:16px;color:#666">min</span>';
+document.getElementById('kpi-dur-d').textContent = d.duracaoDelta;
+document.getElementById('kpi-mach').innerHTML    = d.maquinasAtivas + ' <span style="font-size:16px;color:#666">/ ' + d.maquinasTotal + '</span>';
+document.getElementById('kpi-mach-d').textContent = d.avarias + ' avaria' + (d.avarias !== 1 ? 's' : '');
+
+/* ─── alarmes ─── */
+var alarmList = document.getElementById('alarm-list');
+DATA.alarmes.forEach(function(a) {
+  var div = document.createElement('div');
+  div.className = 'alarm ' + a.level;
+  div.innerHTML = '<span class="alarm-time">'+a.time+'</span>'
+    + '<span class="alarm-mach">'+a.mach+'</span>'
+    + '<span class="alarm-msg">'+a.msg+'</span>'
+    + '<span class="alarm-badge">'+levelLabel[a.level]+'</span>';
+  div.addEventListener('click', function() {
+    document.getElementById('m-level').textContent = levelLabel[a.level];
+    document.getElementById('m-level').style.color = levelColor[a.level];
+    document.getElementById('m-title').textContent = a.msg;
+    document.getElementById('m-mach').textContent  = 'máquina ' + a.mach + ' · ' + a.time;
+    document.getElementById('m-desc').textContent  = a.desc;
+    var vwrap  = document.getElementById('m-video-wrap');
+    var vframe = document.getElementById('m-video');
+    if (a.video) {
+      vframe.src = a.video; vframe.load();
+      vwrap.style.display = 'block';
+    } else {
+      vframe.src = ''; vframe.load();
+      vwrap.style.display = 'none';
+    }
+    var qrEl = document.getElementById('qr-canvas');
+    qrEl.innerHTML = '';
+    new QRCode(qrEl, { text:QR_URL, width:96, height:96, colorDark:'#1a1a1a', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+    document.getElementById('alarm-overlay').classList.add('open');
+  });
+  alarmList.appendChild(div);
+});
+
+function closeAlarmModal() {
+  var v = document.getElementById('m-video'); v.src = ''; v.load();
+  document.getElementById('alarm-overlay').classList.remove('open');
+}
+document.getElementById('alarm-close').addEventListener('click', closeAlarmModal);
+document.getElementById('alarm-overlay').addEventListener('click', function(e) { if (e.target === this) closeAlarmModal(); });
+
+/* ─── login ─── */
+document.getElementById('btn-settings').addEventListener('click', function() {
+  document.getElementById('l-user').value = '';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('l-error').textContent = '';
+  document.getElementById('login-overlay').classList.add('open');
+  setTimeout(function() { document.getElementById('l-user').focus(); }, 100);
+});
+
+function attemptLogin() {
+  var u = document.getElementById('l-user').value.trim();
+  var p = document.getElementById('l-pass').value;
+  if (u === CREDS.user && p === CREDS.pass) {
+    document.getElementById('login-overlay').classList.remove('open');
+    openSettings();
+  } else {
+    document.getElementById('l-error').textContent = 'credenciais incorretas';
+    document.getElementById('l-pass').value = '';
+    document.getElementById('l-pass').focus();
+    var lm = document.getElementById('login-modal');
+    lm.style.transition = 'transform .07s';
+    lm.style.transform = 'translateX(7px)';
+    setTimeout(function(){ lm.style.transform = 'translateX(-7px)'; }, 70);
+    setTimeout(function(){ lm.style.transform = 'translateX(4px)'; },  140);
+    setTimeout(function(){ lm.style.transform = 'translateX(0)'; },    210);
+  }
+}
+document.getElementById('btn-login').addEventListener('click', attemptLogin);
+document.getElementById('l-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') attemptLogin(); });
+document.getElementById('l-user').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('l-pass').focus(); });
+document.getElementById('login-overlay').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+
+/* ─── definições ─── */
+var savedSSID   = localStorage.getItem('mw-ssid')   || '';
+var savedSerial = localStorage.getItem('mw-serial') || '';
+
+function refreshDisplay() {
+  document.getElementById('disp-ssid').textContent   = savedSSID   || '—';
+  document.getElementById('disp-serial').textContent = savedSerial || '—';
+}
+refreshDisplay();
+
+function openSettings() {
+  document.getElementById('wifi-ssid').value    = savedSSID;
+  document.getElementById('wifi-pass').value    = '';
+  document.getElementById('serial-input').value = savedSerial;
+  document.getElementById('wifi-status').textContent   = savedSSID   ? 'rede configurada: ' + savedSSID   : 'não configurado';
+  document.getElementById('wifi-status').className     = 's-status ' + (savedSSID   ? 'ok' : 'info');
+  document.getElementById('serial-status').textContent = savedSerial ? 'registado: ' + savedSerial : 'não registado';
+  document.getElementById('serial-status').className   = 's-status ' + (savedSerial ? 'ok' : 'info');
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+document.getElementById('settings-close').addEventListener('click',  function() { document.getElementById('settings-overlay').classList.remove('open'); });
+document.getElementById('settings-cancel').addEventListener('click', function() { document.getElementById('settings-overlay').classList.remove('open'); });
+document.getElementById('settings-overlay').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+
+document.getElementById('toggle-pass').addEventListener('click', function() {
+  var inp = document.getElementById('wifi-pass');
+  var show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  this.textContent = show ? 'ocultar' : 'mostrar';
+});
+
+document.getElementById('settings-save').addEventListener('click', function() {
+  var ssid   = document.getElementById('wifi-ssid').value.trim();
+  var pass   = document.getElementById('wifi-pass').value;
+  var serial = document.getElementById('serial-input').value.trim().toUpperCase();
+  var ok = true;
+  if (ssid && pass.length < 8) {
+    document.getElementById('wifi-status').textContent = 'password demasiado curta (mín. 8 caracteres)';
+    document.getElementById('wifi-status').className   = 's-status er';
+    ok = false;
+  } else if (ssid) {
+    savedSSID = ssid;
+    localStorage.setItem('mw-ssid', ssid);
+    document.getElementById('wifi-status').textContent = 'rede guardada: ' + ssid;
+    document.getElementById('wifi-status').className   = 's-status ok';
+  }
+  if (serial && !/^[A-Z0-9\-]{4,}$/.test(serial)) {
+    document.getElementById('serial-status').textContent = 'formato inválido';
+    document.getElementById('serial-status').className   = 's-status er';
+    ok = false;
+  } else if (serial) {
+    savedSerial = serial;
+    localStorage.setItem('mw-serial', serial);
+    document.getElementById('serial-status').textContent = 'registado: ' + serial;
+    document.getElementById('serial-status').className   = 's-status ok';
+  }
+  if (ok && (ssid || serial)) {
+    refreshDisplay();
+    setTimeout(function() { document.getElementById('settings-overlay').classList.remove('open'); }, 600);
+  }
+});
+
+/* ─── gráficos ─── */
+var gc = '#f0eeea', tc = '#bbb';
+
+new Chart(document.getElementById('weekChart'), {
+  type: 'bar',
+  data: { labels:['seg','ter','qua','qui','sex','sáb','hoje'], datasets:[{
+    data: DATA.ciclosSemana,
+    backgroundColor: DATA.ciclosSemana.map(function(_,i){ return i===6?'#1a8f6b':'#cce8df'; }),
+    borderRadius:3, borderSkipped:false
+  }]},
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+    scales:{ x:{grid:{display:false},ticks:{color:tc,font:{size:10}}}, y:{grid:{color:gc},ticks:{color:tc,font:{size:10}},border:{display:false}} }
+  }
+});
+
+new Chart(document.getElementById('progChart'), {
+  type: 'bar',
+  data: { labels:DATA.programas.labels, datasets:[{ data:DATA.programas.data, backgroundColor:'#1a8f6b', borderRadius:3, borderSkipped:false }]},
+  options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+    scales:{ x:{grid:{color:gc},ticks:{color:tc,font:{size:10}},border:{display:false}}, y:{grid:{display:false},ticks:{color:tc,font:{size:10}}} }
+  }
+});
+
+new Chart(document.getElementById('consChart'), {
+  type: 'doughnut',
+  data: { labels:DATA.consumos.labels, datasets:[{ data:DATA.consumos.data, backgroundColor:['#1a8f6b','#c2720a','#7bafd4','#b0b0b0'], borderWidth:0, hoverOffset:4 }]},
+  options: { responsive:true, maintainAspectRatio:false, cutout:'68%',
+    plugins:{ legend:{ display:true, position:'right', labels:{color:'#444',font:{size:10},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true} }, tooltip:{enabled:false} }
+  }
+});
+
+/* ─────────────────────────────────────────────
+   AUTO-REFRESH a cada 30 segundos
+   Descomenta e adapta fetchData() à tua API
+   ───────────────────────────────────────────── */
+// async function fetchData() {
+//   const res  = await fetch('/api/dashboard');
+//   const json = await res.json();
+//   // atualizar DATA, KPIs, alarmes, charts...
+// }
+// setInterval(fetchData, 30000);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<!--
+  MULTIWASHER Smart Display System
+  Dashboard v3.1 (Video Fix)
+  
+  SETUP INSTRUCTIONS:
+  1. Copy this file to ~/dashboard/index.html on Raspberry Pi
+  2. Ensure ~/dashboard/videos/ folder exists with: "Dosing pump purge.mp4"
+  3. Start HTTP server: python3 -m http.server 8080 (from ~/dashboard/)
+  4. Access via: http://localhost:8080
+  
+  VIDEO SOURCES (automatic fallback):
+  - Local video: /videos/Dosing pump purge.mp4 (via HTTP server)
+  - Remote fallback: Google Drive link (if local fails)
+  - Supports both scenarios: HTTP server (Pi) and file:// (testing)
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; style-src 'self' 'unsafe-inline' https: data:; script-src 'self' 'unsafe-inline' https: data:; media-src 'self' https: data: blob:; img-src 'self' https: data:">
+<title>MULTIWASHER · Painel Operacional</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+:root{
+  --bg:#f4f3f0;--surface:#ffffff;--border:#e8e6e1;--border2:#f0eeea;
+  --text:#1a1a1a;--text-mid:#444;--text-mute:#777;--text-sub:#888;--text-dim:#666;
+  --field-bg:#fafaf9;--chart-grid:#f0eeea;--chart-tick:#bbb;
+  --alarm-crit-bg:#fdf4f4;--alarm-warn-bg:#fdf8f0;--alarm-info-bg:#f4f9f7;
+  --modal-desc-bg:#f9f8f6;--modal-desc-border:#e0ddd8;
+}
+body.dark{
+  --bg:#141414;--surface:#1e1e1e;--border:#2e2e2e;--border2:#272727;
+  --text:#e8e6e1;--text-mid:#c8c6c2;--text-mute:#999;--text-sub:#777;--text-dim:#aaa;
+  --field-bg:#252525;--chart-grid:#2a2a2a;--chart-tick:#555;
+  --alarm-crit-bg:#2a1a1a;--alarm-warn-bg:#261f14;--alarm-info-bg:#152320;
+  --modal-desc-bg:#252525;--modal-desc-border:#3a3a3a;
+}
+body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(--text);display:flex;flex-direction:column;transition:background .25s,color .25s}
+/* TOP BAR */
+.top{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+.top-l{font-size:10px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase}
+.top-r{font-size:20px;letter-spacing:4px;color:var(--text)}
+.top-actions{display:flex;align-items:center;gap:10px}
+.btn-icon{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-size:12px;color:var(--text-dim);cursor:pointer;transition:border-color .15s,color .15s,background .25s;line-height:1;display:flex;align-items:center;font-family:inherit}
+.btn-icon:hover{border-color:var(--text-mute);color:var(--text-mid)}
+.btn-txt{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:10px;color:var(--text-dim);font-family:inherit;letter-spacing:1px;cursor:pointer;transition:border-color .15s,color .15s,background .25s}
+.btn-txt:hover{border-color:var(--text-mute);color:var(--text-mid)}
+.btn-support{border-color:#1a8f6b;color:#1a8f6b}
+.btn-support:hover{background:#1a8f6b;color:#fff;border-color:#1a8f6b}
+.lang-group{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.btn-lang{background:none;border:none;border-right:1px solid var(--border);padding:5px 7px;font-size:9px;color:var(--text-dim);font-family:inherit;letter-spacing:1px;cursor:pointer;transition:background .15s,color .15s;line-height:1}
+.btn-lang:last-child{border-right:none}
+.btn-lang:hover{background:var(--border);color:var(--text-mid)}
+.btn-lang.active{background:var(--text);color:var(--bg)}
+/* KPIS */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-bottom:1px solid var(--border)}
+.k{padding:16px 20px;border-right:1px solid var(--border);display:flex;gap:16px;align-items:center}
+.k:last-child{border-right:none}
+.k-info{flex-shrink:0}
+.k-l{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.k-v{font-size:36px;font-weight:400;line-height:1;color:var(--text)}
+.k-d{font-size:10px;margin-top:5px}
+.k-spark{flex:1;min-width:0;width:100%;height:80px;position:relative}
+.up{color:#1a8f6b}.dn{color:#c0392b}
+/* BODY */
+.body{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;flex:1;min-height:0}
+.card{background:var(--surface);border-radius:6px;border:1px solid var(--border);padding:16px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.c-label{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.card-header .c-label{margin-bottom:0}
+.card-btns{display:flex;gap:6px}
+.btn-card{background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:8px;color:var(--text-dim);font-family:inherit;letter-spacing:1px;cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap}
+.btn-card:hover{border-color:var(--text-mute);color:var(--text-mid)}
+/* ALARMS */
+.alarm-list{display:flex;flex-direction:column;gap:6px}
+.alarm{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:4px;border-left:3px solid transparent;cursor:pointer;transition:opacity .15s}
+.alarm:active{opacity:.7}
+.alarm.crit{background:var(--alarm-crit-bg);border-color:#c0392b}
+.alarm.warn{background:var(--alarm-warn-bg);border-color:#c2720a}
+.alarm.info{background:var(--alarm-info-bg);border-color:#1a8f6b}
+.alarm-time{font-size:9px;color:var(--text-mute);width:38px;flex-shrink:0}
+.alarm-mach{font-size:9px;font-weight:500;width:28px;flex-shrink:0}
+.alarm.crit .alarm-mach{color:#c0392b}
+.alarm.warn .alarm-mach{color:#c2720a}
+.alarm.info .alarm-mach{color:#1a8f6b}
+.alarm-msg{font-size:10px;color:var(--text-mid);flex:1}
+.alarm-badge{font-size:8px;letter-spacing:1px;padding:2px 6px;border-radius:2px;flex-shrink:0}
+.alarm.crit .alarm-badge{background:#f7c1c1;color:#791f1f}
+.alarm.warn .alarm-badge{background:#fac775;color:#412402}
+.alarm.info .alarm-badge{background:#9fe1cb;color:#04342c}
+.chart-wrap{position:relative;flex:1;min-height:0;overflow:hidden}
+/* BOTTOM */
+.bottom{padding:8px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.b-l{font-size:10px;color:var(--text-sub);letter-spacing:1px}
+.dot{width:5px;height:5px;border-radius:50%;background:#1a8f6b;display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* OVERLAYS & MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:8px;border:1px solid var(--border);padding:24px;position:relative;width:480px;max-width:95vw}
+.modal-close{position:absolute;top:14px;right:16px;font-size:16px;color:var(--text-mute);cursor:pointer;background:none;border:none;padding:4px 8px;font-family:inherit}
+.modal-level{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.modal-title{font-size:16px;font-weight:500;color:var(--text);margin-bottom:4px}
+.modal-mach{font-size:11px;color:var(--text-dim);margin-bottom:16px}
+.modal-desc{font-size:12px;color:var(--text-mid);line-height:1.7;margin-bottom:16px;padding:12px;background:var(--modal-desc-bg);border-radius:4px;border-left:3px solid var(--modal-desc-border)}
+.modal-video-wrap{margin-bottom:20px}
+.modal-video-label{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.modal-video-frame{width:100%;max-height:320px;aspect-ratio:16/9;border:1px solid var(--border);border-radius:4px;background:#000}
+.modal-qr-row{display:flex;align-items:center;gap:16px;padding-top:16px;border-top:1px solid var(--border2)}
+.modal-qr-text{flex:1}
+.modal-qr-label{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.modal-qr-sub{font-size:10px;color:var(--text-sub);line-height:1.5}
+/* LARGE MODALS */
+.modal-lg{background:var(--surface);border-radius:8px;border:1px solid var(--border);width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;position:relative}
+.modal-lg-head{padding:24px 24px 16px;border-bottom:1px solid var(--border2);flex-shrink:0}
+.modal-lg-body{overflow-y:auto;flex:1;padding:16px 24px 24px}
+.hist-day{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;padding:12px 0 6px;border-bottom:1px solid var(--border2);margin-bottom:4px}
+.hist-day:first-child{padding-top:0}
+.hist-row{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;border-left:3px solid transparent;margin-bottom:3px}
+.hist-row.crit{background:var(--alarm-crit-bg);border-color:#c0392b}
+.hist-row.warn{background:var(--alarm-warn-bg);border-color:#c2720a}
+.hist-row.info{background:var(--alarm-info-bg);border-color:#1a8f6b}
+.hist-time{font-size:9px;color:var(--text-mute);width:38px;flex-shrink:0}
+.hist-mach{font-size:9px;font-weight:500;width:28px;flex-shrink:0}
+.hist-row.crit .hist-mach{color:#c0392b}.hist-row.warn .hist-mach{color:#c2720a}.hist-row.info .hist-mach{color:#1a8f6b}
+.hist-msg{font-size:10px;color:var(--text-mid);flex:1}
+.hist-badge{font-size:8px;letter-spacing:1px;padding:2px 6px;border-radius:2px;flex-shrink:0}
+.hist-row.crit .hist-badge{background:#f7c1c1;color:#791f1f}
+.hist-row.warn .hist-badge{background:#fac775;color:#412402}
+.hist-row.info .hist-badge{background:#9fe1cb;color:#04342c}
+/* CATALOG */
+.cat-item{border:1px solid var(--border);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.cat-item:hover{border-color:var(--text-mute)}
+.cat-head{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--surface)}
+.cat-head-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cat-head-dot.crit{background:#c0392b}.cat-head-dot.warn{background:#c2720a}.cat-head-dot.info{background:#1a8f6b}
+.cat-head-title{font-size:11px;color:var(--text);flex:1}
+.cat-head-badge{font-size:8px;letter-spacing:1px;padding:2px 6px;border-radius:2px;flex-shrink:0}
+.cat-item.crit .cat-head-badge{background:#f7c1c1;color:#791f1f}
+.cat-item.warn .cat-head-badge{background:#fac775;color:#412402}
+.cat-item.info .cat-head-badge{background:#9fe1cb;color:#04342c}
+.cat-chevron{font-size:10px;color:var(--text-mute);transition:transform .2s;flex-shrink:0}
+.cat-body{display:none;padding:0 14px 14px;background:var(--modal-desc-bg);border-top:1px solid var(--border2)}
+.cat-body.open{display:block}
+.cat-body-label{font-size:8px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin:10px 0 4px}
+.cat-body-text{font-size:11px;color:var(--text-mid);line-height:1.7}
+/* LOGIN */
+.login-modal{background:var(--surface);border-radius:8px;border:1px solid var(--border);width:300px;padding:28px;position:relative}
+.login-title{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.l-field{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:4px;padding:0 12px;background:var(--field-bg);margin-bottom:10px}
+.l-field:focus-within{border-color:var(--text-dim)}
+.l-field-icon{font-size:11px;color:var(--text-sub);width:14px}
+.l-field input{flex:1;border:none;background:none;font-family:inherit;font-size:12px;color:var(--text);padding:10px 0;outline:none}
+.l-field input::placeholder{color:var(--text-sub)}
+.l-error{font-size:10px;color:#c0392b;min-height:16px;margin-bottom:12px;letter-spacing:.5px}
+.btn-login{width:100%;background:var(--text);border:none;border-radius:4px;padding:10px;font-size:10px;color:var(--bg);font-family:inherit;letter-spacing:2px;cursor:pointer;transition:opacity .15s}
+.btn-login:hover{opacity:.8}
+/* SETTINGS */
+.settings-modal{background:var(--surface);border-radius:8px;border:1px solid var(--border);width:360px;padding:28px;position:relative}
+.s-title{font-size:11px;color:var(--text-sub);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.s-section{margin-bottom:22px}
+.s-label{font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.s-field{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:4px;padding:0 12px;background:var(--field-bg)}
+.s-field:focus-within{border-color:var(--text-dim)}
+.s-field input,.s-field select{flex:1;border:none;background:none;font-family:inherit;font-size:12px;color:var(--text);padding:10px 0;outline:none;cursor:pointer;appearance:none}
+.s-field select option{background:var(--surface);color:var(--text)}
+.s-field-icon{font-size:12px;color:var(--text-sub)}
+.s-toggle{font-size:10px;color:var(--text-dim);cursor:pointer;padding:2px;letter-spacing:1px;background:none;border:none;font-family:inherit}
+.s-status{font-size:10px;margin-top:8px;min-height:14px}
+.s-status.ok{color:#1a8f6b}.s-status.er{color:#c0392b}.s-status.info{color:var(--text-dim)}
+.s-divider{border:none;border-top:1px solid var(--border2);margin:4px 0 22px}
+.s-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.s-key{font-size:10px;color:var(--text-dim)}
+.s-val{font-size:10px;color:var(--text-mid);font-family:inherit}
+.s-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:24px}
+.btn-cancel{background:none;border:1px solid var(--border);border-radius:4px;padding:8px 16px;font-size:10px;color:var(--text-dim);font-family:inherit;letter-spacing:1px;cursor:pointer}
+.btn-save{background:var(--text);border:1px solid var(--text);border-radius:4px;padding:8px 16px;font-size:10px;color:var(--bg);font-family:inherit;letter-spacing:1px;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.8}
+/* SUPPORT PANEL — isolado, pointer-events controlados */
+.support-panel{
+  position:fixed;top:0;right:0;width:380px;height:100vh;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:500;
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+}
+.support-panel.open{
+  transform:translateX(0);
+  pointer-events:all;
+}
+.sp-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sp-head-info .sp-title{font-size:10px;letter-spacing:2px;color:var(--text-mute);text-transform:uppercase}
+.sp-head-info .sp-sub{font-size:9px;color:#1a8f6b;margin-top:3px;letter-spacing:1px}
+.sp-close{background:none;border:none;font-size:18px;color:var(--text-mute);cursor:pointer;padding:4px 8px;font-family:inherit;line-height:1}
+.sp-close:hover{color:var(--text)}
+.sp-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.sp-msg{max-width:88%;padding:10px 13px;border-radius:6px;font-size:11px;line-height:1.65;word-break:break-word}
+.sp-msg.user{background:#1a8f6b;color:#fff;align-self:flex-end;border-bottom-right-radius:2px}
+.sp-msg.ai{background:var(--border);color:var(--text);align-self:flex-start;border-bottom-left-radius:2px}
+.sp-msg.thinking{color:var(--text-mute);font-style:italic}
+.sp-disclaimer{font-size:9px;color:var(--text-mute);text-align:center;padding:5px 16px;letter-spacing:.5px;border-top:1px solid var(--border2)}
+.sp-input-row{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.sp-input{flex:1;border:1px solid var(--border);border-radius:4px;padding:9px 12px;font-size:11px;font-family:inherit;background:var(--field-bg);color:var(--text);outline:none}
+.sp-input:focus{border-color:#1a8f6b}
+.sp-send{background:#1a8f6b;border:none;border-radius:4px;padding:9px 14px;font-size:11px;color:#fff;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:opacity .15s;flex-shrink:0}
+.sp-send:hover{opacity:.85}
+.sp-send:disabled{opacity:.4;cursor:not-allowed}
+
+.net-btn{background:none;border:none;cursor:default;padding:4px;display:flex;align-items:center;transition:opacity .3s}
+.net-btn.online svg path,.net-btn.online svg circle{fill:#1a8f6b}
+.net-btn.offline svg path,.net-btn.offline svg circle{fill:#c0392b}
+.net-btn.checking svg path,.net-btn.checking svg circle{fill:var(--text-mute)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div style="display:flex;align-items:center;gap:10px">
+    <img src="mws.png" style="height:28px;width:auto;opacity:.85" alt="logo">
+    <span class="top-l" id="top-title">MULTIWASHER · painel operacional</span>
+  </div>
+  <span class="top-r" id="clk">--:--</span>
+  <div class="top-actions">
+    <span class="top-l" id="dt">--/--</span>
+    <div class="lang-group">
+      <button class="btn-lang active" data-lang="pt">PT</button>
+      <button class="btn-lang" data-lang="en">EN</button>
+      <button class="btn-lang" data-lang="fr">FR</button>
+      <button class="btn-lang" data-lang="es">ES</button>
+    </div>
+    <button class="net-btn checking" id="net-status" title="a verificar...">
+      <svg width="20" height="16" viewBox="0 0 20 16" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="10" cy="14.5" r="1.5"/>
+        <path fill-rule="evenodd" d="M7.05 10.6a4.15 4.15 0 0 1 5.9 0l-1.1 1.1a2.65 2.65 0 0 0-3.7 0l-1.1-1.1z"/>
+        <path fill-rule="evenodd" d="M4.2 7.75a7.5 7.5 0 0 1 11.6 0l-1.15 1.15a5.9 5.9 0 0 0-9.3 0L4.2 7.75z"/>
+        <path fill-rule="evenodd" d="M1.35 4.9a11.5 11.5 0 0 1 17.3 0L17.5 6.05a9.9 9.9 0 0 0-15 0L1.35 4.9z"/>
+      </svg>
+    </button>
+    <button class="btn-icon" id="btn-theme" title="tema">◑</button>
+    <button class="btn-txt btn-support" id="btn-support">✦ Ai</button>
+    <button class="btn-txt" id="btn-settings">⚙</button>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="k">
+    <div class="k-info">
+      <div class="k-l" id="lbl-ciclos">ciclos hoje</div>
+      <div class="k-v up" id="kpi-ciclos">142</div>
+      <div class="k-d up" id="kpi-ciclos-d">+12 vs ontem</div>
+    </div>
+    <div class="k-spark"><canvas id="sparkCiclos" style="display:block;max-width:100%;max-height:100%"></canvas></div>
+  </div>
+  <div class="k">
+    <div class="k-info">
+      <div class="k-l" id="lbl-dur">duração média</div>
+      <div class="k-v" id="kpi-dur">47 <span style="font-size:16px;color:var(--text-dim)">min</span></div>
+      <div class="k-d up" id="kpi-dur-d">−3 min vs média</div>
+    </div>
+    <div class="k-spark"><canvas id="sparkDur" style="display:block;max-width:100%;max-height:100%"></canvas></div>
+  </div>
+  <div class="k">
+    <div class="k-info">
+      <div class="k-l" id="lbl-energia">energia gasta</div>
+      <div class="k-v" id="kpi-energia">284 <span style="font-size:16px;color:var(--text-dim)">kWh</span></div>
+      <div class="k-d dn" id="kpi-energia-d">+8 kWh vs média</div>
+    </div>
+    <div class="k-spark"><canvas id="sparkEnergia" style="display:block;max-width:100%;max-height:100%"></canvas></div>
+  </div>
+</div>
+
+<div class="body">
+  <div class="card">
+    <div class="card-header">
+      <div class="c-label" id="lbl-alarms">alarmes — hoje</div>
+      <div class="card-btns">
+        <button class="btn-card" id="btn-hist">↻ histórico</button>
+        <button class="btn-card" id="btn-catalog">☰ catálogo</button>
+      </div>
+    </div>
+    <div class="alarm-list" id="alarm-list"></div>
+  </div>
+  <div class="card">
+    <div class="c-label" id="lbl-week">ciclos — últimos 7 dias</div>
+    <div class="chart-wrap"><canvas id="weekChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="c-label" id="lbl-prog">programas hoje</div>
+    <div class="chart-wrap"><canvas id="progChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="c-label" id="lbl-cons">consumo médio / ciclo</div>
+    <div class="chart-wrap"><canvas id="consChart"></canvas></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <span class="b-l"><span class="dot"></span><span id="lbl-online">online · atualiza 30s</span></span>
+  <span class="b-l" id="date2"></span>
+</div>
+
+<!-- ALARM MODAL -->
+<div class="overlay" id="alarm-overlay">
+  <div class="modal">
+    <button class="modal-close" id="alarm-close">✕</button>
+    <div class="modal-level" id="m-level"></div>
+    <div class="modal-title" id="m-title"></div>
+    <div class="modal-mach" id="m-mach"></div>
+    <div class="modal-desc" id="m-desc"></div>
+    <div class="modal-video-wrap" id="m-video-wrap" style="display:none">
+      <div class="modal-video-label" id="lbl-video">vídeo de assistência</div>
+      <video id="m-video" class="modal-video-frame" controls playsinline muted preload="none" style="border-radius:4px;background:#000"></video>
+    </div>
+    <div class="modal-qr-row">
+      <div id="qr-canvas"></div>
+      <div class="modal-qr-text">
+        <div class="modal-qr-label" id="lbl-qr">manual técnico</div>
+        <div class="modal-qr-sub" id="lbl-qr-sub">digitaliza o QR code para aceder ao manual de assistência e procedimentos de resolução.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="overlay" id="hist-overlay">
+  <div class="modal-lg">
+    <button class="modal-close" id="hist-close">✕</button>
+    <div class="modal-lg-head">
+      <div class="modal-level" style="color:var(--text-mute)">histórico</div>
+      <div class="modal-title" id="hist-title">erros — últimos 7 dias</div>
+    </div>
+    <div class="modal-lg-body" id="hist-body"></div>
+  </div>
+</div>
+
+<!-- CATALOG MODAL -->
+<div class="overlay" id="catalog-overlay">
+  <div class="modal-lg">
+    <button class="modal-close" id="catalog-close">✕</button>
+    <div class="modal-lg-head">
+      <div class="modal-level" style="color:var(--text-mute)">referência</div>
+      <div class="modal-title" id="catalog-title">catálogo de erros e resoluções</div>
+    </div>
+    <input type="text" id="catalog-search" placeholder="pesquisar por código ou palavra-chave..." style="width:calc(100% - 24px);padding:14px 12px;border:1px solid var(--border);border-radius:4px;font-family:inherit;background:var(--field-bg);color:var(--text);margin:12px;box-sizing:border-box;font-size:13px;line-height:1.4">
+    <div class="modal-lg-body" id="catalog-body"></div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="overlay" id="login-overlay">
+  <div class="login-modal" id="login-modal">
+    <div class="login-title" id="login-title">acesso restrito</div>
+    <input type="hidden" id="login-target" value="">
+    <div class="l-field"><span class="l-field-icon">◎</span><input type="text" id="l-user" placeholder="utilizador" autocomplete="off" spellcheck="false"></div>
+    <div class="l-field"><span class="l-field-icon">◈</span><input type="password" id="l-pass" placeholder="password" autocomplete="off"></div>
+    <div class="l-error" id="l-error"></div>
+    <button class="btn-login" id="btn-login">entrar</button>
+  </div>
+</div>
+
+<!-- SETTINGS PICKER -->
+<div class="overlay" id="spicker-overlay">
+  <div class="settings-modal" style="width:280px;padding:24px">
+    <button class="modal-close" id="spicker-close">✕</button>
+    <div class="s-title">definições — secção</div>
+    <button class="btn-save" id="btn-open-wifi" style="width:100%;margin-bottom:10px;text-align:left;padding:12px 16px">◎ &nbsp;rede wifi</button>
+    <button class="btn-save" id="btn-open-equip" style="width:100%;text-align:left;padding:12px 16px">◇ &nbsp;equipamento &amp; fuso</button>
+  </div>
+</div>
+
+<!-- SETTINGS WIFI -->
+<div class="overlay" id="swifi-overlay">
+  <div class="settings-modal">
+    <button class="modal-close" id="swifi-close">✕</button>
+    <div class="s-title">configuração wifi</div>
+    <div class="s-section">
+      <div class="s-label">rede wifi</div>
+      <div class="s-field"><span class="s-field-icon">◎</span><input type="text" id="wifi-ssid" placeholder="nome da rede (SSID)" autocomplete="off" spellcheck="false"></div>
+      <div class="s-field" style="margin-top:8px"><span class="s-field-icon">◈</span><input type="password" id="wifi-pass" placeholder="password" autocomplete="off"><button class="s-toggle" id="toggle-pass">mostrar</button></div>
+      <div class="s-status info" id="wifi-status">não configurado</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section" style="margin-bottom:0">
+      <div class="s-label">estado atual</div>
+      <div class="s-row"><span class="s-key">rede guardada</span><span class="s-val" id="disp-ssid">—</span></div>
+      <div class="s-row"><span class="s-key">firmware</span><span class="s-val">v2.4.1</span></div>
+    </div>
+    <div class="s-actions">
+      <button class="btn-cancel" id="swifi-cancel">cancelar</button>
+      <button class="btn-save" id="swifi-save">guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS EQUIP -->
+<div class="overlay" id="sequip-overlay">
+  <div class="settings-modal">
+    <button class="modal-close" id="sequip-close">✕</button>
+    <div class="s-title">equipamento &amp; fuso horário</div>
+    <div class="s-section">
+      <div class="s-label">número de série</div>
+      <div class="s-field"><span class="s-field-icon">◇</span><input type="text" id="serial-input" placeholder="ex: MW-2024-00142" autocomplete="off" spellcheck="false" style="text-transform:uppercase"></div>
+      <div class="s-status info" id="serial-status">não registado</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section">
+      <div class="s-label">fuso horário</div>
+      <div class="s-field">
+        <span class="s-field-icon">◷</span>
+        <select id="tz-select">
+          <optgroup label="Europa">
+            <option value="Europe/Lisbon">Lisboa (WET)</option>
+            <option value="Europe/London">Londres (GMT)</option>
+            <option value="Europe/Paris">Paris / Madrid (CET)</option>
+            <option value="Europe/Berlin">Berlim / Varsóvia (CET)</option>
+            <option value="Europe/Helsinki">Helsínquia (EET)</option>
+            <option value="Europe/Moscow">Moscovo (MSK)</option>
+          </optgroup>
+          <optgroup label="Américas">
+            <option value="America/New_York">Nova Iorque (ET)</option>
+            <option value="America/Chicago">Chicago (CT)</option>
+            <option value="America/Los_Angeles">Los Angeles (PT)</option>
+            <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+          </optgroup>
+          <optgroup label="Ásia / Pacífico">
+            <option value="Asia/Dubai">Dubai (GST)</option>
+            <option value="Asia/Kolkata">Mumbai (IST)</option>
+            <option value="Asia/Shanghai">Pequim (CST)</option>
+            <option value="Asia/Tokyo">Tóquio (JST)</option>
+            <option value="Australia/Sydney">Sydney (AEST)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="s-status info" id="tz-status">fuso ativo: Europe/Lisbon</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section" style="margin-bottom:0">
+      <div class="s-label">estado atual</div>
+      <div class="s-row"><span class="s-key">nº série</span><span class="s-val" id="disp-serial">—</span></div>
+      <div class="s-row"><span class="s-key">fuso</span><span class="s-val" id="disp-tz">—</span></div>
+      <div class="s-row"><span class="s-key">firmware</span><span class="s-val">v2.4.1</span></div>
+    </div>
+    <div class="s-actions">
+      <button class="btn-cancel" id="sequip-cancel">cancelar</button>
+      <button class="btn-save" id="sequip-save">guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT PANEL -->
+<div class="support-panel" id="support-panel">
+  <div class="sp-head">
+    <div class="sp-head-info">
+      <div class="sp-title" id="sp-title">assistente multiwasher</div>
+      <div class="sp-sub" id="sp-sub">● modo demonstração</div>
+    </div>
+    <button class="sp-close" id="sp-close">✕</button>
+  </div>
+  <div class="sp-messages" id="sp-messages">
+    <div class="sp-msg ai" id="sp-welcome">Olá! Sou o assistente MULTIWASHER. Posso ajudar com operação, alarmes, limpeza e manutenção. Que questão tem?</div>
+  </div>
+  <div class="sp-disclaimer" id="sp-disclaimer">modo demonstração · respostas baseadas no manual MWS</div>
+  <div class="sp-input-row">
+    <input class="sp-input" id="sp-input" type="text" placeholder="escreva a sua questão..." autocomplete="off" spellcheck="false">
+    <button class="sp-send" id="sp-send">enviar</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<!-- QRCode library removed - using image from Google Drive instead -->
+<script>
+'use strict';
+
+/* ── CONFIG ── */
+var CREDS_EQUIP = { user:'admin', pass:'2002002' };
+var CREDS_WIFI  = { user:'admin', pass:'199199' };
+var QR_URL = 'https://drive.google.com/file/d/18wBcNLoBij6YiaV6LYUKWTjJC_8TFevg/view?usp=sharing';
+// Video paths - adaptive based on context (HTTP server vs file://)
+// Video sources: PRIMARY = Google Drive (cloud), FALLBACK = local file (if no internet)
+var VIDEO_PRIMARY = 'https://drive.google.com/uc?export=view&id=1lfccMJE8SxzSx0L0WD_wNCT5L2OslWMc';  // Cloud (primary)
+var VIDEO_FALLBACK = '/videos/Dosing pump purge.mp4';  // Local file (fallback if no internet)
+var VIDEO_DOSEADOR = 'https://res.cloudinary.com/dlkkjtgvy/video/upload/v1774825287/Dosing_pump_purge_ctxpac.mp4';  // Dosing pump video
+
+/* ── STATE ── */
+var currentLang = localStorage.getItem('mw-lang') || 'pt';
+var savedSSID   = localStorage.getItem('mw-ssid')   || '';
+var savedSerial = localStorage.getItem('mw-serial') || '';
+var savedTZ     = localStorage.getItem('mw-tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon';
+
+/* ── I18N ── */
+var T = {
+  pt:{ title:'painel operacional', kpi_c:'ciclos hoje', kpi_d:'duração média', kpi_e:'energia gasta',
+       alarms:'alarmes — hoje', hint:'toca para detalhes', week:'ciclos — últimos 7 dias',
+       prog:'programas hoje', cons:'consumo médio / ciclo', online:'online · atualiza 30s',
+       video:'vídeo de assistência', qr:'manual técnico', qr_sub:'digitaliza o QR code para aceder ao manual.',
+       login:'acesso restrito', btn_in:'entrar', err_cred:'credenciais incorretas',
+       hist:'erros — últimos 7 dias', cat:'catálogo de erros e resoluções',
+       causa:'causa provável', resolucao:'procedimento de resolução',
+       btn_hist:'↻ histórico', btn_cat:'☰ catálogo',
+       wifi_no:'não configurado', wifi_ok:'rede guardada: ', wifi_short:'password mín. 8 caracteres',
+       serial_no:'não registado', serial_ok:'registado: ', serial_inv:'formato inválido',
+       cancel:'cancelar', save:'guardar', show:'mostrar', hide:'ocultar',
+       wlabels:['seg','ter','qua','qui','sex','sáb','hoje'],
+       plabels:['gastronormas','tabuleiros','panelas','facas/utens.'],
+       clabels:['água','energia','detergente'],
+       lv:{crit:'crítico',warn:'aviso',info:'info'},
+       sp_title:'assistente multiwasher', sp_sub:'● modo demonstração',
+       sp_disc:'modo demonstração · respostas baseadas no manual MWS',
+       sp_ph:'escreva a sua questão...', sp_send:'enviar',
+       sp_think:'a consultar o manual...',
+       sp_welcome:'Olá! Sou o assistente MULTIWASHER. Posso ajudar com operação, alarmes, limpeza e manutenção. Que questão tem?' },
+  en:{ title:'operational panel', kpi_c:'cycles today', kpi_d:'avg duration', kpi_e:'energy used',
+       alarms:'alarms — today', hint:'tap for details', week:'cycles — last 7 days',
+       prog:'programs today', cons:'avg consumption / cycle', online:'online · updates 30s',
+       video:'assistance video', qr:'technical manual', qr_sub:'scan QR code to access the manual.',
+       login:'restricted access', btn_in:'sign in', err_cred:'incorrect credentials',
+       hist:'errors — last 7 days', cat:'error catalogue & resolutions',
+       causa:'probable cause', resolucao:'resolution procedure',
+       btn_hist:'↻ history', btn_cat:'☰ catalogue',
+       wifi_no:'not configured', wifi_ok:'network saved: ', wifi_short:'password min. 8 characters',
+       serial_no:'not registered', serial_ok:'registered: ', serial_inv:'invalid format',
+       cancel:'cancel', save:'save', show:'show', hide:'hide',
+       wlabels:['mon','tue','wed','thu','fri','sat','today'],
+       plabels:['gastronorms','trays','pots','knives/tools'],
+       clabels:['water','energy','detergent'],
+       lv:{crit:'critical',warn:'warning',info:'info'},
+       sp_title:'multiwasher assistant', sp_sub:'● demo mode',
+       sp_disc:'demo mode · answers based on MWS manual',
+       sp_ph:'type your question...', sp_send:'send',
+       sp_think:'consulting manual...',
+       sp_welcome:'Hello! I am the MULTIWASHER assistant. I can help with operation, alarms, cleaning and maintenance.' },
+  fr:{ title:'tableau de bord', kpi_c:'cycles aujourd\'hui', kpi_d:'durée moyenne', kpi_e:'énergie consommée',
+       alarms:'alarmes — aujourd\'hui', hint:'toucher pour détails', week:'cycles — 7 derniers jours',
+       prog:'programmes aujourd\'hui', cons:'consommation moy. / cycle', online:'en ligne · actualise 30s',
+       video:'vidéo d\'assistance', qr:'manuel technique', qr_sub:'scannez le QR code pour accéder au manuel.',
+       login:'accès restreint', btn_in:'connexion', err_cred:'identifiants incorrects',
+       hist:'erreurs — 7 derniers jours', cat:'catalogue d\'erreurs et résolutions',
+       causa:'cause probable', resolucao:'procédure de résolution',
+       btn_hist:'↻ historique', btn_cat:'☰ catalogue',
+       wifi_no:'non configuré', wifi_ok:'réseau enregistré : ', wifi_short:'mot de passe min. 8 caractères',
+       serial_no:'non enregistré', serial_ok:'enregistré : ', serial_inv:'format invalide',
+       cancel:'annuler', save:'enregistrer', show:'afficher', hide:'masquer',
+       wlabels:['lun','mar','mer','jeu','ven','sam','auj.'],
+       plabels:['gastronormes','plateaux','casseroles','couteaux/ut.'],
+       clabels:['eau','énergie','détergent'],
+       lv:{crit:'critique',warn:'avertiss.',info:'info'},
+       sp_title:'assistant multiwasher', sp_sub:'● mode démo',
+       sp_disc:'mode démo · réponses basées sur le manuel MWS',
+       sp_ph:'écrivez votre question...', sp_send:'envoyer',
+       sp_think:'consultation du manuel...',
+       sp_welcome:'Bonjour! Je suis l\'assistant MULTIWASHER. Je peux aider avec l\'opération, les alarmes, le nettoyage.' },
+  es:{ title:'panel operacional', kpi_c:'ciclos hoy', kpi_d:'duración media', kpi_e:'energía consumida',
+       alarms:'alarmas — hoy', hint:'toca para detalles', week:'ciclos — últimos 7 días',
+       prog:'programas hoy', cons:'consumo medio / ciclo', online:'en línea · actualiza 30s',
+       video:'vídeo de asistencia', qr:'manual técnico', qr_sub:'escanea el QR para acceder al manual.',
+       login:'acceso restringido', btn_in:'entrar', err_cred:'credenciales incorrectas',
+       hist:'errores — últimos 7 días', cat:'catálogo de errores y resoluciones',
+       causa:'causa probable', resolucao:'procedimiento de resolución',
+       btn_hist:'↻ historial', btn_cat:'☰ catálogo',
+       wifi_no:'no configurado', wifi_ok:'red guardada: ', wifi_short:'contraseña mín. 8 caracteres',
+       serial_no:'no registrado', serial_ok:'registrado: ', serial_inv:'formato inválido',
+       cancel:'cancelar', save:'guardar', show:'mostrar', hide:'ocultar',
+       wlabels:['lun','mar','mié','jue','vie','sáb','hoy'],
+       plabels:['gastronormas','bandejas','ollas','cuchillos/ut.'],
+       clabels:['agua','energía','detergente'],
+       lv:{crit:'crítico',warn:'aviso',info:'info'},
+       sp_title:'asistente multiwasher', sp_sub:'● modo demo',
+       sp_disc:'modo demo · respuestas del manual MWS',
+       sp_ph:'escriba su pregunta...', sp_send:'enviar',
+       sp_think:'consultando el manual...',
+       sp_welcome:'¡Hola! Soy el asistente MULTIWASHER. Puedo ayudar con operación, alarmas, limpieza y mantenimiento.' }
+};
+var LOCALE = { pt:'pt-PT', en:'en-GB', fr:'fr-FR', es:'es-ES' };
+
+/* ── DATA ── */
+var DATA = {
+  alarmes: [
+    { time:'08:14', mach:'M-09', level:'crit', video:false,
+      msg:{ pt:'falha de bomba de circulação', en:'circulation pump failure', fr:'panne de pompe de circulation', es:'fallo de bomba de circulación' },
+      desc:{ pt:'A bomba de circulação principal não respondeu ao arranque. Possível causa: condensador do motor danificado, sobrecarga térmica ativada ou falha de alimentação elétrica. Verificar quadro elétrico e relé térmico antes de reiniciar.',
+             en:'The main circulation pump did not respond on startup. Possible cause: damaged motor capacitor, activated thermal overload or power supply failure. Check electrical panel and thermal relay before restarting.',
+             fr:'La pompe de circulation principale n\'a pas répondu au démarrage. Cause possible: condensateur endommagé, surcharge thermique ou panne d\'alimentation. Vérifier le tableau électrique avant de redémarrer.',
+             es:'La bomba de circulación principal no respondió al arranque. Posible causa: condensador dañado, sobrecarga térmica o fallo de alimentación. Verificar cuadro eléctrico y relé térmico antes de reiniciar.' } },
+    { time:'09:02', mach:'M-05', level:'warn', video:false,
+      msg:{ pt:'temperatura abaixo do setpoint', en:'temperature below setpoint', fr:'température en dessous du setpoint', es:'temperatura por debajo del setpoint' },
+      desc:{ pt:'A temperatura de lavagem ficou abaixo do valor configurado. Possível causa: resistência de aquecimento com desempenho reduzido ou válvula de entrada de água fria com fuga. Verificar resistência e termostato.',
+             en:'Washing temperature dropped below configured value. Possible cause: underperforming heating element or leaking cold water valve. Check heating element and thermostat.',
+             fr:'La température de lavage est descendue en dessous de la valeur configurée. Résistance défaillante ou vanne d\'entrée d\'eau froide qui fuit. Vérifier la résistance et le thermostat.',
+             es:'La temperatura de lavado cayó por debajo del valor configurado. Posible causa: resistencia de calefacción deficiente o válvula de agua fría con fuga. Verificar resistencia y termostato.' } },
+    { time:'09:47', mach:'M-02', level:'warn', video:VIDEO_DOSEADOR,
+      msg:{ pt:'falha no doseador de detergente', en:'detergent dosing failure', fr:'panne du doseur de détergent', es:'fallo en el dosificador de detergente' },
+      desc:{ pt:'O doseador não injetou a quantidade programada de detergente. Pode indicar bomba peristáltica desgastada, tubagem obstruída ou reservatório vazio. Consultar o vídeo de assistência abaixo para o procedimento de verificação.',
+             en:'The dosing unit did not inject the programmed detergent amount. May indicate worn peristaltic pump, blocked tubing or empty reservoir. See assistance video below.',
+             fr:'Le doseur n\'a pas injecté la quantité programmée. Peut indiquer une pompe péristaltique usée, tubulure obstruée ou réservoir vide. Consulter la vidéo ci-dessous.',
+             es:'El dosificador no inyectó la cantidad programada. Puede indicar bomba peristáltica desgastada, tubería obstruida o depósito vacío. Ver vídeo de asistencia.' } },
+    { time:'10:31', mach:'M-07', level:'info', video:false,
+      msg:{ pt:'manutenção preventiva em 3 dias', en:'preventive maintenance in 3 days', fr:'maintenance préventive dans 3 jours', es:'mantenimiento preventivo en 3 días' },
+      desc:{ pt:'Aviso automático de manutenção programada. Atingiu 450 horas de operação. Prevista substituição de juntas, limpeza de braços aspersores e verificação de rolamentos. Agendar paragem com o técnico.',
+             en:'Automatic maintenance alert. 450 operating hours reached. Planned: seal replacement, spray arm cleaning and bearing inspection. Schedule downtime with technician.',
+             fr:'Alerte de maintenance automatique. 450 heures atteintes. Prévu: remplacement de joints, nettoyage des bras asperseurs et vérification des roulements.',
+             es:'Aviso automático de mantenimiento. 450 horas de operación alcanzadas. Previsto: sustitución de juntas, limpieza de brazos aspersores y verificación de rodamientos.' } },
+    { time:'11:15', mach:'M-01', level:'info', video:false,
+      msg:{ pt:'filtro — limpeza recomendada', en:'filter — cleaning recommended', fr:'filtre — nettoyage recommandé', es:'filtro — limpieza recomendada' },
+      desc:{ pt:'O sensor de diferencial de pressão indica acumulação no filtro de resíduos. Recomenda-se limpeza do cesto filtrante para evitar perda de eficiência de lavagem.',
+             en:'The pressure differential sensor indicates residue build-up in the filter. Cleaning the filter basket is recommended to avoid loss of washing efficiency.',
+             fr:'Le capteur de différentiel de pression indique une accumulation dans le filtre. Nettoyage du panier recommandé pour éviter une perte d\'efficacité.',
+             es:'El sensor de diferencial de presión indica acumulación en el filtro. Se recomienda limpiar el cesto filtrante para evitar pérdida de eficiencia.' } }
+  ],
+  ciclosSemana:[118,130,124,141,109,136,142],
+  programas:{ data:[58,42,24,18] },
+  consumos:{ data:[38,31,19] },
+  sparkCiclos: [0,0,2,5,9,14,18,22,19,17,14,10,8,12,15,11,9,0,0,0,0,0,0,0],
+  sparkDur:    [0,0,48,51,46,44,47,50,49,48,45,47,46,48,50,47,45,0,0,0,0,0,0,0],
+  sparkEnergia:[0,0,8,14,22,31,40,52,62,72,80,88,94,104,116,124,130,0,0,0,0,0,0,0],
+  historico:[
+    {day:{pt:'seg',en:'mon',fr:'lun',es:'lun'},date:'17/03',alarms:[
+      {time:'07:22',mach:'M-03',level:'crit',msg:{pt:'falha de bomba de circulação',en:'circulation pump failure',fr:'panne de pompe de circulation',es:'fallo de bomba de circulación'}},
+      {time:'11:45',mach:'M-07',level:'warn',msg:{pt:'temperatura abaixo do setpoint',en:'temperature below setpoint',fr:'température en dessous du setpoint',es:'temperatura por debajo del setpoint'}},
+      {time:'14:10',mach:'M-02',level:'info',msg:{pt:'filtro — limpeza recomendada',en:'filter — cleaning recommended',fr:'filtre — nettoyage recommandé',es:'filtro — limpieza recomendada'}}
+    ]},
+    {day:{pt:'ter',en:'tue',fr:'mar',es:'mar'},date:'18/03',alarms:[
+      {time:'09:05',mach:'M-05',level:'warn',msg:{pt:'falha no doseador de detergente',en:'detergent dosing failure',fr:'panne du doseur de détergent',es:'fallo en el dosificador de detergente'}},
+      {time:'10:30',mach:'M-09',level:'crit',msg:{pt:'sobrecarga térmica do motor',en:'motor thermal overload',fr:'surcharge thermique du moteur',es:'sobrecarga térmica del motor'}}
+    ]},
+    {day:{pt:'qua',en:'wed',fr:'mer',es:'mié'},date:'19/03',alarms:[
+      {time:'08:50',mach:'M-01',level:'info',msg:{pt:'manutenção preventiva em 3 dias',en:'preventive maintenance in 3 days',fr:'maintenance préventive dans 3 jours',es:'mantenimiento preventivo en 3 días'}},
+      {time:'13:22',mach:'M-04',level:'warn',msg:{pt:'temperatura abaixo do setpoint',en:'temperature below setpoint',fr:'température en dessous du setpoint',es:'temperatura por debajo del setpoint'}},
+      {time:'16:01',mach:'M-06',level:'info',msg:{pt:'nível de amaciador baixo',en:'softener level low',fr:'niveau d\'adoucissant bas',es:'nivel de suavizante bajo'}}
+    ]},
+    {day:{pt:'qui',en:'thu',fr:'jeu',es:'jue'},date:'20/03',alarms:[
+      {time:'07:44',mach:'M-08',level:'crit',msg:{pt:'falha de bomba de circulação',en:'circulation pump failure',fr:'panne de pompe de circulation',es:'fallo de bomba de circulación'}},
+      {time:'09:18',mach:'M-03',level:'info',msg:{pt:'filtro — limpeza recomendada',en:'filter — cleaning recommended',fr:'filtre — nettoyage recommandé',es:'filtro — limpieza recomendada'}}
+    ]},
+    {day:{pt:'sex',en:'fri',fr:'ven',es:'vie'},date:'21/03',alarms:[
+      {time:'10:02',mach:'M-05',level:'warn',msg:{pt:'falha no doseador de detergente',en:'detergent dosing failure',fr:'panne du doseur de détergent',es:'fallo en el dosificador de detergente'}},
+      {time:'11:30',mach:'M-07',level:'crit',msg:{pt:'sensor de temperatura sem resposta',en:'temperature sensor unresponsive',fr:'capteur de température sans réponse',es:'sensor de temperatura sin respuesta'}},
+      {time:'15:55',mach:'M-02',level:'warn',msg:{pt:'manutenção preventiva em 1 dia',en:'preventive maintenance in 1 day',fr:'maintenance préventive dans 1 jour',es:'mantenimiento preventivo en 1 día'}}
+    ]},
+    {day:{pt:'sáb',en:'sat',fr:'sam',es:'sáb'},date:'22/03',alarms:[
+      {time:'08:33',mach:'M-01',level:'info',msg:{pt:'nível de detergente baixo',en:'detergent level low',fr:'niveau de détergent bas',es:'nivel de detergente bajo'}}
+    ]},
+    {day:{pt:'hoje',en:'today',fr:'auj.',es:'hoy'},date:'23/03',alarms:[
+      {time:'08:14',mach:'M-09',level:'crit',msg:{pt:'falha de bomba de circulação',en:'circulation pump failure',fr:'panne de pompe de circulation',es:'fallo de bomba de circulación'}},
+      {time:'09:02',mach:'M-05',level:'warn',msg:{pt:'temperatura abaixo do setpoint',en:'temperature below setpoint',fr:'température en dessous du setpoint',es:'temperatura por debajo del setpoint'}},
+      {time:'09:47',mach:'M-02',level:'warn',msg:{pt:'falha no doseador de detergente',en:'detergent dosing failure',fr:'panne du doseur de détergent',es:'fallo en el dosificador de detergente'}},
+      {time:'10:31',mach:'M-07',level:'info',msg:{pt:'manutenção preventiva em 3 dias',en:'preventive maintenance in 3 days',fr:'maintenance préventive dans 3 jours',es:'mantenimiento preventivo en 3 días'}},
+      {time:'11:15',mach:'M-01',level:'info',msg:{pt:'filtro — limpeza recomendada',en:'filter — cleaning recommended',fr:'filtre — nettoyage recommandé',es:'filtro — limpieza recomendada'}}
+    ]}
+  ],
+  catalogo:[
+    {level:'info',title:{pt:'Sonda PT100-2 da caldeira',en:'Boiler PT100-2 Sensor',fr:'Capteur PT100-2 chaudière',es:'Sensor PT100-2 caldera'},causa:{pt:'Sonda de temperatura da caldeira danificada ou desligada. Substituir sonda. Contactar serviço técnico.',en:'Boiler temperature probe damaged or disconnected. Replace probe. Contact technical service.',fr:'Sonde de température chaudière endommagée ou déconnectée. Remplacer sonde. Contacter service technique.',es:'Sonda de temperatura caldera dañada o desconectada. Reemplazar sonda. Contactar servicio técnico.'},resolucao:{pt:'1. Desligar equipamento.\n2. Localizar sonda PT100-2 na caldeira.\n3. Verificar ligações elétricas.\n4. Testar continuidade com ohmiometro.\n5. Se danificada, substituir por sonda igual.\n6. Contactar serviço se persistir.',en:'1. Switch off equipment.\n2. Locate PT100-2 probe in boiler.\n3. Check electrical connections.\n4. Test continuity with ohmmeter.\n5. If damaged, replace with identical probe.\n6. Contact service if persists.',fr:'1. Éteindre équipement.\n2. Localiser sonde PT100-2 chaudière.\n3. Vérifier connexions électriques.\n4. Tester continuité avec ohmmètre.\n5. Si endommagée, remplacer par sonde identique.\n6. Contacter service si persiste.',es:'1. Apagar equipo.\n2. Localizar sonda PT100-2 en caldera.\n3. Verificar conexiones eléctricas.\n4. Probar continuidad con óhmetro.\n5. Si está dañada, reemplazar con sonda idéntica.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'info',title:{pt:'Sonda PT100-1 do tanque',en:'Tank PT100-1 Sensor',fr:'Capteur PT100-1 réservoir',es:'Sensor PT100-1 depósito'},causa:{pt:'Sonda de temperatura do tanque danificada ou desligada. Substituir sonda. Contactar serviço técnico.',en:'Tank temperature probe damaged or disconnected. Replace probe. Contact technical service.',fr:'Sonde de température réservoir endommagée ou déconnectée. Remplacer sonde. Contacter service technique.',es:'Sonda de temperatura depósito dañada o desconectada. Reemplazar sonda. Contactar servicio técnico.'},resolucao:{pt:'1. Desligar equipamento.\n2. Localizar sonda PT100-1 no tanque.\n3. Verificar ligações elétricas.\n4. Testar continuidade.\n5. Substituir se danificada.\n6. Contactar serviço técnico.',en:'1. Switch off equipment.\n2. Locate PT100-1 probe in tank.\n3. Check electrical connections.\n4. Test continuity.\n5. Replace if damaged.\n6. Contact technical service.',fr:'1. Éteindre équipement.\n2. Localiser sonde PT100-1 réservoir.\n3. Vérifier connexions électriques.\n4. Tester continuité.\n5. Remplacer si endommagée.\n6. Contacter service technique.',es:'1. Apagar equipo.\n2. Localizar sonda PT100-1 depósito.\n3. Verificar conexiones eléctricas.\n4. Probar continuidad.\n5. Reemplazar si está dañada.\n6. Contactar servicio técnico.'},video:false},
+    {level:'crit',title:{pt:'Temperatura da caldeira elevada',en:'High Boiler Temperature',fr:'Température chaudière élevée',es:'Temperatura caldera alta'},causa:{pt:'Temperatura da caldeira excedeu 100°C. Risco de queimadura e avaria do equipamento. Desligar imediatamente.',en:'Boiler temperature exceeded 100°C. Risk of burns and equipment failure. Switch off immediately.',fr:'Température chaudière dépassé 100°C. Risque de brûlure et panne équipement. Éteindre immédiatement.',es:'Temperatura caldera supera 100°C. Riesgo de quemaduras y fallo equipo. Apagar inmediatamente.'},resolucao:{pt:'1. DESLIGAR IMEDIATAMENTE o equipamento.\n2. Fechar válvula de vapor (se aplicável).\n3. Aguardar arrefecimento completo (mínimo 30 min).\n4. Verificar resistência de aquecimento.\n5. Verificar termóstato de segurança.\n6. Contactar serviço técnico.',en:'1. SWITCH OFF IMMEDIATELY.\n2. Close steam valve (if applicable).\n3. Wait for complete cooling (minimum 30 min).\n4. Check heating element.\n5. Check safety thermostat.\n6. Contact technical service.',fr:'1. ÉTEINDRE IMMÉDIATEMENT.\n2. Fermer vanne vapeur (si applicable).\n3. Attendre refroidissement complet (minimum 30 min).\n4. Vérifier élément chauffage.\n5. Vérifier thermostat sécurité.\n6. Contacter service technique.',es:'1. APAGAR INMEDIATAMENTE.\n2. Cerrar válvula vapor (si aplica).\n3. Esperar enfriamiento completo (mínimo 30 min).\n4. Verificar elemento calefacción.\n5. Verificar termostato seguridad.\n6. Contactar servicio técnico.'},video:false},
+    {level:'crit',title:{pt:'Temperatura do tanque elevada',en:'High Tank Temperature',fr:'Température réservoir élevée',es:'Temperatura depósito alta'},causa:{pt:'Temperatura do tanque excedeu 100°C. Desligar imediatamente e aguardar arrefecimento.',en:'Tank temperature exceeded 100°C. Switch off immediately and wait for cooling.',fr:'Température réservoir dépassé 100°C. Éteindre immédiatement et attendre refroidissement.',es:'Temperatura depósito supera 100°C. Apagar inmediatamente y esperar enfriamiento.'},resolucao:{pt:'1. DESLIGAR IMEDIATAMENTE.\n2. Aguardar arrefecimento completo (30+ min).\n3. Não abrir tanque enquanto quente.\n4. Verificar resistência do tanque.\n5. Contactar serviço técnico imediatamente.',en:'1. SWITCH OFF IMMEDIATELY.\n2. Wait for complete cooling (30+ min).\n3. Do not open tank while hot.\n4. Check tank heating element.\n5. Contact technical service immediately.',fr:'1. ÉTEINDRE IMMÉDIATEMENT.\n2. Attendre refroidissement complet (30+ min).\n3. Ne pas ouvrir réservoir tant que chaud.\n4. Vérifier élément chauffage réservoir.\n5. Contacter service technique immédiatement.',es:'1. APAGAR INMEDIATAMENTE.\n2. Esperar enfriamiento completo (30+ min).\n3. No abrir depósito mientras caliente.\n4. Verificar elemento calefacción depósito.\n5. Contactar servicio técnico inmediatamente.'},video:false},
+    {level:'warn',title:{pt:'Carro travado - motor M11',en:'Trolley Jamming Motor M11',fr:'Chariot bloqué moteur M11',es:'Carro bloqueado motor M11'},causa:{pt:'Tempo máximo excedido sem detectar rotação interna. Possível encravamento da plataforma rotativa ou objeto estranho.',en:'Maximum time exceeded without detecting internal rotation. Possible jamming of rotating platform or foreign object.',fr:'Durée maximale dépassée sans détection rotation. Blocage possible plate-forme rotative ou objet étranger.',es:'Tiempo máximo excedido sin detectar rotación. Posible bloqueo plataforma rotativa u objeto extraño.'},resolucao:{pt:'1. Desligar equipamento.\n2. Abrir porta interna e verificar interior.\n3. Remover qualquer objeto estranho.\n4. Verificar se plataforma roda livremente manualmente.\n5. Verificar ligações do motor M11.\n6. Contactar serviço se persistir.',en:'1. Switch off equipment.\n2. Open internal door and inspect interior.\n3. Remove any foreign objects.\n4. Manually check if platform rotates freely.\n5. Check M11 motor connections.\n6. Contact service if persists.',fr:'1. Éteindre équipement.\n2. Ouvrir porte interne et inspecter intérieur.\n3. Retirer tout objet étranger.\n4. Vérifier manuellement rotation libre plate-forme.\n5. Vérifier connexions moteur M11.\n6. Contacter service si persiste.',es:'1. Apagar equipo.\n2. Abrir puerta interna e inspeccionar interior.\n3. Retirar cualquier objeto extraño.\n4. Verificar manualmente rotación libre plataforma.\n5. Verificar conexiones motor M11.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'warn',title:{pt:'Inversor VV11 rotação',en:'Inverter VV11 Rotation',fr:'Inverseur VV11 rotation',es:'Inversor VV11 rotación'},causa:{pt:'Carro não roda em condições normais. Possível encravamento mecânico, problema no inversor ou falha elétrica.',en:'Trolley not rotating normally. Possible mechanical jam, inverter problem or electrical failure.',fr:'Chariot ne tourne pas normalement. Blocage mécanique possible, problème inverseur ou défaut électrique.',es:'Carro no rota normalmente. Posible bloqueo mecánico, problema inversor o fallo eléctrico.'},resolucao:{pt:'1. Desligar e reiniciar equipamento.\n2. Verificar se plataforma move manualmente.\n3. Verificar ligações do inversor VV11.\n4. Medir tensão de alimentação.\n5. Testar motor de rotação.\n6. Contactar serviço técnico.',en:'1. Switch off and restart equipment.\n2. Check if platform moves manually.\n3. Check VV11 inverter connections.\n4. Measure supply voltage.\n5. Test rotation motor.\n6. Contact technical service.',fr:'1. Éteindre et redémarrer équipement.\n2. Vérifier si plate-forme se déplace manuellement.\n3. Vérifier connexions inverseur VV11.\n4. Mesurer tension alimentation.\n5. Tester moteur rotation.\n6. Contacter service technique.',es:'1. Apagar y reiniciar equipo.\n2. Verificar si plataforma se mueve manualmente.\n3. Verificar conexiones inversor VV11.\n4. Medir tensión alimentación.\n5. Probar motor rotación.\n6. Contactar servicio técnico.'},video:false},
+    {level:'warn',title:{pt:'Tempo de enchimento excedido',en:'Filling Tank Timeout',fr:'Délai remplissage dépassé',es:'Tiempo llenado excedido'},causa:{pt:'Tempo de enchimento do tanque foi excedido. Válvula de entrada de água pode estar fechada, entupida ou com mau funcionamento.',en:'Tank filling time exceeded. Water inlet valve may be closed, clogged or malfunctioning.',fr:'Durée remplissage réservoir dépassée. Vanne entrée eau peut être fermée, bouchée ou défectueuse.',es:'Tiempo llenado depósito excedido. Válvula entrada agua puede estar cerrada, atascada o defectuosa.'},resolucao:{pt:'1. Verificar se torneira/válvula de abastecimento está aberta.\n2. Inspeccionar filtro de entrada por sedimentos.\n3. Verificar se válvula de drenagem está fechada.\n4. Testar electroválvula de entrada.\n5. Verificar pressão de água.\n6. Contactar serviço se persistir.',en:'1. Check if supply valve is open.\n2. Inspect inlet filter for sediment.\n3. Check drain valve is closed.\n4. Test inlet solenoid valve.\n5. Check water pressure.\n6. Contact service if persists.',fr:'1. Vérifier si vanne alimentation ouverte.\n2. Inspecter filtre entrée pour sédiments.\n3. Vérifier vanne drainage fermée.\n4. Tester vanne solénoïde entrée.\n5. Vérifier pression eau.\n6. Contacter service si persiste.',es:'1. Verificar si válvula alimentation abierta.\n2. Inspeccionar filtro entrada por sedimentos.\n3. Verificar válvula drenaje cerrada.\n4. Probar válvula solenoide entrada.\n5. Verificar presión agua.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'info',title:{pt:'Nível de detergente baixo [M311]',en:'Low Detergent Level [M311]',fr:'Niveau détergent bas [M311]',es:'Nivel detergente bajo [M311]'},causa:{pt:'Detergente no nível mínimo. Sistema de dosagem pode não funcionar corretamente se estiver vazio.',en:'Detergent at minimum level. Dosing system may not function correctly if empty.',fr:'Détergent au niveau minimum. Système dosage peut ne pas fonctionner si vide.',es:'Detergente en nivel mínimo. Sistema dosificación puede no funcionar si está vacío.'},resolucao:{pt:'1. Abrir porta do reservatório de detergente.\n2. Reabastecer com detergente aprovado.\n3. Fechar porta corretamente.\n4. Verificar mangueira de aspiração.\n5. Realizar ciclo de purga se necessário.',en:'1. Open detergent reservoir door.\n2. Refill with approved detergent.\n3. Close door properly.\n4. Check suction hose.\n5. Run purge cycle if needed.',fr:'1. Ouvrir porte réservoir détergent.\n2. Remplir avec détergent approuvé.\n3. Fermer porte correctement.\n4. Vérifier tuyau aspiration.\n5. Effectuer cycle purge si nécessaire.',es:'1. Abrir puerta depósito detergente.\n2. Reabastecer con detergente aprobado.\n3. Cerrar puerta correctamente.\n4. Verificar manguera aspiración.\n5. Realizar ciclo purga si es necesario.'},video:false},
+    {level:'warn',title:{pt:'Falha na dosagem de detergente [M-DOSING]',en:'Detergent Dosing Failure [M-DOSING]',fr:'Panne du doseur de détergent [M-DOSING]',es:'Fallo en dosificador de detergente [M-DOSING]'},causa:{pt:'O doseador não injetou a quantidade programada de detergente. Pode indicar bomba peristáltica desgastada, tubagem obstruída ou reservatório vazio. Consultar o vídeo de assistência para o procedimento de verificação.',en:'The dosing unit did not inject the programmed detergent amount. May indicate worn peristaltic pump, blocked tubing or empty reservoir. See assistance video below.',fr:'Le doseur n\'a pas injecté la quantité programmée de détergent. Peut indiquer une pompe péristaltique usée, tubulure obstruée ou réservoir vide. Consulter la vidéo ci-dessous.',es:'El dosificador no inyectó la cantidad programada de detergente. Puede indicar bomba peristáltica desgastada, tubería obstruida o depósito vacío. Ver vídeo de asistencia.'},resolucao:{pt:'1. Verificar nível do reservatório de detergente.\n2. Inspecionar tubo peristáltico por desgaste ou deformação.\n3. Tentar purgar manualmente a bomba doseadora.\n4. Se travada, desligar equipamento e aguardar 5 minutos.\n5. Verificar se entrada/saída da bomba está obstruída.\n6. Se persistir, substituir tubo ou contactar serviço técnico.',en:'1. Check detergent reservoir level.\n2. Inspect peristaltic tube for wear or deformation.\n3. Try manually purging the dosing pump.\n4. If jammed, switch off equipment and wait 5 minutes.\n5. Check if pump inlet/outlet is blocked.\n6. If persists, replace tube or contact technical service.',fr:'1. Vérifier niveau réservoir détergent.\n2. Inspecter tube péristaltique pour usure ou déformation.\n3. Essayer purger manuellement pompe doseadora.\n4. Si bloquée, éteindre équipement et attendre 5 minutes.\n5. Vérifier si entrée/sortie pompe est obstruée.\n6. Si persiste, remplacer tube ou contacter service technique.',es:'1. Verificar nivel depósito detergente.\n2. Inspeccionar tubo peristáltico por desgaste o deformación.\n3. Intentar purgar manualmente la bomba doseadora.\n4. Si está atascada, apagar equipo y esperar 5 minutos.\n5. Verificar si entrada/salida bomba está obstruida.\n6. Si persiste, reemplazar tubo o contactar servicio técnico.'},video:VIDEO_DOSEADOR},
+    {level:'crit',title:{pt:'Termóstato segurança caldeira inferior',en:'Bottom Boiler Safety Thermostat',fr:'Thermostat sécurité chaudière inférieure',es:'Termostato seguridad caldera inferior'},causa:{pt:'Temperatura interior da caldeira inferior atingiu 110°C. Termóstato de segurança disparou. Desligar imediatamente.',en:'Bottom boiler internal temperature reached 110°C. Safety thermostat triggered. Switch off immediately.',fr:'Température interne chaudière inférieure atteint 110°C. Thermostat sécurité déclenché. Éteindre immédiatement.',es:'Temperatura interna caldera inferior alcanzó 110°C. Termostato seguridad disparado. Apagar inmediatamente.'},resolucao:{pt:'1. DESLIGAR EQUIPAMENTO IMEDIATAMENTE.\n2. Aguardar arrefecimento completo (≥1 hora).\n3. Localizar termóstato S28 na caldeira inferior.\n4. Remover tampa preta do termóstato.\n5. Premir o pino interno para resetar.\n6. Substituir se danificado.\n7. Contactar serviço técnico.',en:'1. SWITCH OFF EQUIPMENT IMMEDIATELY.\n2. Wait for complete cooling (≥1 hour).\n3. Locate S28 thermostat in lower boiler.\n4. Remove black cap from thermostat.\n5. Press internal pin to reset.\n6. Replace if damaged.\n7. Contact technical service.',fr:'1. ÉTEINDRE ÉQUIPEMENT IMMÉDIATEMENT.\n2. Attendre refroidissement complet (≥1 heure).\n3. Localiser thermostat S28 chaudière inférieure.\n4. Retirer bouchon noir du thermostat.\n5. Appuyer sur le pin interne pour réinitialiser.\n6. Remplacer si endommagé.\n7. Contacter service technique.',es:'1. APAGAR EQUIPO INMEDIATAMENTE.\n2. Esperar enfriamiento completo (≥1 hora).\n3. Localizar termostato S28 en caldera inferior.\n4. Retirar tapa negra del termostato.\n5. Presionar el pin interno para resetear.\n6. Reemplazar si está dañado.\n7. Contactar servicio técnico.'},video:false},
+    {level:'crit',title:{pt:'Termóstato segurança caldeira superior',en:'Top Boiler Safety Thermostat',fr:'Thermostat sécurité chaudière supérieure',es:'Termostato seguridad caldera superior'},causa:{pt:'Temperatura interior da caldeira superior atingiu 110°C. Termóstato de segurança disparou. Desligar imediatamente.',en:'Top boiler internal temperature reached 110°C. Safety thermostat triggered. Switch off immediately.',fr:'Température interne chaudière supérieure atteint 110°C. Thermostat sécurité déclenché. Éteindre immédiatement.',es:'Temperatura interna caldera superior alcanzó 110°C. Termostato seguridad disparado. Apagar inmediatamente.'},resolucao:{pt:'1. DESLIGAR EQUIPAMENTO IMEDIATAMENTE.\n2. Aguardar arrefecimento completo (≥1 hora).\n3. Localizar termóstato S29 na caldeira superior.\n4. Remover tampa preta do termóstato.\n5. Premir o pino interno para resetar.\n6. Substituir se danificado.\n7. Contactar serviço técnico.',en:'1. SWITCH OFF EQUIPMENT IMMEDIATELY.\n2. Wait for complete cooling (≥1 hour).\n3. Locate S29 thermostat in upper boiler.\n4. Remove black cap from thermostat.\n5. Press internal pin to reset.\n6. Replace if damaged.\n7. Contact technical service.',fr:'1. ÉTEINDRE ÉQUIPEMENT IMMÉDIATEMENT.\n2. Attendre refroidissement complet (≥1 heure).\n3. Localiser thermostat S29 chaudière supérieure.\n4. Retirer bouchon noir du thermostat.\n5. Appuyer sur le pin interne pour réinitialiser.\n6. Remplacer si endommagé.\n7. Contacter service technique.',es:'1. APAGAR EQUIPO INMEDIATAMENTE.\n2. Esperar enfriamiento completo (≥1 hora).\n3. Localizar termostato S29 en caldera superior.\n4. Retirar tapa negra del termostato.\n5. Presionar el pin interno para resetear.\n6. Reemplazar si está dañado.\n7. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Disjuntor bomba drenagem',en:'Drain Pump Breaker',fr:'Disjoncteur pompe drainage',es:'Disyuntor bomba drenaje'},causa:{pt:'Disjuntor da bomba de drenagem disparou. Possível sobrecarga ou curto-circuito na bomba.',en:'Drain pump breaker tripped. Possible pump overload or short circuit.',fr:'Disjoncteur pompe drainage déclenché. Surcharge possible ou court-circuit pompe.',es:'Disyuntor bomba drenaje disparado. Posible sobrecarga o cortocircuito bomba.'},resolucao:{pt:'1. Localizar disjuntor QF8 no quadro elétrico.\n2. Verificar se disparou (alavanca para baixo).\n3. Desligar equipamento antes de resetar.\n4. Empurrar alavanca para resetar (posição central, depois cima).\n5. Ligar equipamento.\n6. Se disparar novamente, contactar serviço.',en:'1. Locate QF8 breaker in electrical panel.\n2. Check if tripped (lever down).\n3. Switch off equipment before resetting.\n4. Push lever to reset (center position, then up).\n5. Switch on equipment.\n6. If trips again, contact service.',fr:'1. Localiser disjoncteur QF8 tableau électrique.\n2. Vérifier si déclenché (levier bas).\n3. Éteindre équipement avant réinitialisation.\n4. Appuyer levier pour réinitialiser (position centrale, puis haut).\n5. Allumer équipement.\n6. Si redéclenche, contacter service.',es:'1. Localizar disyuntor QF8 en cuadro eléctrico.\n2. Verificar si disparó (palanca abajo).\n3. Apagar equipo antes de resetear.\n4. Empujar palanca para resetear (posición central, luego arriba).\n5. Encender equipo.\n6. Si dispara de nuevo, contactar servicio.'},video:false},
+    {level:'info',title:{pt:'Disjuntor ventilador extractor',en:'Extractor Fan Breaker',fr:'Disjoncteur ventilateur extracteur',es:'Disyuntor ventilador extracto'},causa:{pt:'Disjuntor do ventilador extractor disparou. Possível sobrecarga ou ventilador travado.',en:'Extractor fan breaker tripped. Possible fan overload or jam.',fr:'Disjoncteur ventilateur extracteur déclenché. Surcharge possible ou ventilateur bloqué.',es:'Disyuntor ventilador extracto disparado. Posible sobrecarga o ventilador bloqueado.'},resolucao:{pt:'1. Localizar disjuntor QF10 no quadro elétrico.\n2. Verificar se ventilador está travado.\n3. Desligar equipamento.\n4. Limpar pás do ventilador de detritos.\n5. Resetar disjuntor (empurrar alavanca).\n6. Ligar equipamento.\n7. Se persistir, contactar serviço.',en:'1. Locate QF10 breaker in electrical panel.\n2. Check if fan is jammed.\n3. Switch off equipment.\n4. Clean fan blades from debris.\n5. Reset breaker (push lever).\n6. Switch on equipment.\n7. If persists, contact service.',fr:'1. Localiser disjoncteur QF10 tableau électrique.\n2. Vérifier si ventilateur bloqué.\n3. Éteindre équipement.\n4. Nettoyer pales ventilateur de débris.\n5. Réinitialiser disjoncteur (appuyer levier).\n6. Allumer équipement.\n7. Si persiste, contacter service.',es:'1. Localizar disyuntor QF10 en cuadro eléctrico.\n2. Verificar si ventilador bloqueado.\n3. Apagar equipo.\n4. Limpiar aspas ventilador de escombros.\n5. Resetear disyuntor (empujar palanca).\n6. Encender equipo.\n7. Si persiste, contactar servicio.'},video:false},
+    {level:'warn',title:{pt:'Problema bomba enxaguamento',en:'Rinse Pump Problem',fr:'Problème pompe rinçage',es:'Problema bomba enjuague'},causa:{pt:'Bomba de enxaguamento com problema. Bicos de enxaguamento podem estar obstruídos ou bomba danificada.',en:'Rinse pump problem. Rinse nozzles may be clogged or pump damaged.',fr:'Problème pompe rinçage. Biques rinçage peuvent être bouchés ou pompe endommagée.',es:'Problema bomba enjuague. Boquillas enjuague pueden estar obstruidas o bomba dañada.'},resolucao:{pt:'1. Desligar equipamento.\n2. Abrir porta interna e inspecionar bicos.\n3. Limpar bicos obstruídos com escova de nylon.\n4. Verificar mangueiras por fugas.\n5. Resetar disjuntor QF9 se disparou.\n6. Contactar serviço se persistir.',en:'1. Switch off equipment.\n2. Open internal door and inspect nozzles.\n3. Clean clogged nozzles with nylon brush.\n4. Check hoses for leaks.\n5. Reset QF9 breaker if tripped.\n6. Contact service if persists.',fr:'1. Éteindre équipement.\n2. Ouvrir porte interne et inspecter biques.\n3. Nettoyer biques bouchós avec brosse nylon.\n4. Vérifier tuyaux pour fuites.\n5. Réinitialiser disjoncteur QF9 si déclenché.\n6. Contacter service si persiste.',es:'1. Apagar equipo.\n2. Abrir puerta interna e inspeccionar boquillas.\n3. Limpiar boquillas obstruidas con cepillo nylon.\n4. Verificar mangueras por fugas.\n5. Resetear disyuntor QF9 si disparó.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'crit',title:{pt:'Botão emergência ativo',en:'Emergency Button Active',fr:'Bouton urgence actif',es:'Botón emergencia activo'},causa:{pt:'Botão de emergência foi acionado. Equipamento parou imediatamente por razões de segurança.',en:'Emergency button has been activated. Equipment stopped immediately for safety.',fr:'Bouton urgence a été activé. Équipement arrêté immédiatement pour sécurité.',es:'Botón emergencia ha sido activado. Equipo parado inmediatamente por seguridad.'},resolucao:{pt:'1. Identificar o problema que causou a emergência.\n2. Resolver o problema completamente.\n3. Rodara botão de emergência para a direita (desbloqueio).\n4. Premir RESET no ecrã táctil.\n5. Equipamento voltará ao funcionamento normal.\n6. Se disparar novamente, investigar a causa.',en:'1. Identify the problem that triggered emergency.\n2. Resolve the problem completely.\n3. Rotate emergency button to right (unlock).\n4. Press RESET on touch screen.\n5. Equipment will resume normal operation.\n6. If triggers again, investigate cause.',fr:'1. Identifier le problème ayant déclenché urgence.\n2. Résoudre le problème complètement.\n3. Tourner bouton urgence vers droite (déverrouillage).\n4. Appuyer RESET sur écran tactile.\n5. Équipement reprendra fonctionnement normal.\n6. Si redéclenche, investiguer la cause.',es:'1. Identificar el problema que disparó emergencia.\n2. Resolver el problema completamente.\n3. Rotar botón emergencia hacia derecha (desbloqueo).\n4. Presionar RESET en pantalla táctil.\n5. Equipo reanudará operación normal.\n6. Si se dispara de nuevo, investigar la causa.'},video:false},
+    {level:'warn',title:{pt:'Falha conversor temperatura',en:'Temperature Converter Failure',fr:'Défaut convertisseur température',es:'Fallo convertidor temperatura'},causa:{pt:'Falha nos conversores de temperatura ou placa analógica do PLC. Leitura de temperatura imprecisa ou impossível.',en:'Failure in temperature converters or PLC analog board. Inaccurate or impossible temperature reading.',fr:'Défaut convertisseurs température ou carte analogique PLC. Lecture température imprécise ou impossible.',es:'Fallo en convertidores temperatura o tarjeta analógica PLC. Lectura temperatura imprecisa o imposible.'},resolucao:{pt:'1. Desligar equipamento.\n2. Aguardar 2-3 minutos.\n3. Ligar novamente (pode ser erro transitório).\n4. Se persistir, contactar serviço técnico.\n5. Não continuar operação com leitura falha.\n6. Serviço técnico pode precisar substituir placa.',en:'1. Switch off equipment.\n2. Wait 2-3 minutes.\n3. Switch on again (may be transient error).\n4. If persists, contact technical service.\n5. Do not continue operation with faulty reading.\n6. Technical service may need to replace board.',fr:'1. Éteindre équipement.\n2. Attendre 2-3 minutes.\n3. Allumer à nouveau (peut être erreur transitoire).\n4. Si persiste, contacter service technique.\n5. Ne pas continuer avec lecture défectueuse.\n6. Service technique peut avoir besoin remplacer carte.',es:'1. Apagar equipo.\n2. Esperar 2-3 minutos.\n3. Encender de nuevo (puede ser error transitorio).\n4. Si persiste, contactar servicio técnico.\n5. No continuar operación con lectura defectuosa.\n6. Servicio técnico puede necesitar reemplazar tarjeta.'},video:false},
+    {level:'info',title:{pt:'Relé proteção bomba lavagem',en:'Washing Pump Protection Relay',fr:'Relais protection pompe lavage',es:'Relé protección bomba lavado'},causa:{pt:'Relé de protecção da bomba de lavagem disparou. Possível sobrecarga, espuma excessiva ou baixo nível de água.',en:'Washing pump protection relay tripped. Possible overload, excessive foam or low water level.',fr:'Relais protection pompe lavage déclenché. Surcharge possible, écume excessif ou niveau eau bas.',es:'Relé protección bomba lavado disparado. Posible sobrecarga, espuma excesiva o nivel agua bajo.'},resolucao:{pt:'1. Verificar nível de água no tanque.\n2. Se baixo, verificar se válvula de drenagem está fechada.\n3. Verificar se há espuma excessiva.\n4. Se sim, adicionar antiespuma e retirar água.\n5. Verificar bicos obstruídos.\n6. Relé reseta automaticamente após arrefecimento (10s).',en:'1. Check water level in tank.\n2. If low, check drain valve is closed.\n3. Check for excessive foam.\n4. If yes, add defoamer and drain water.\n5. Check for clogged nozzles.\n6. Relay resets automatically after cooling (10s).',fr:'1. Vérifier niveau eau réservoir.\n2. Si bas, vérifier vanne drainage fermée.\n3. Vérifier écume excessif.\n4. Si oui, ajouter anti-mousse et vider eau.\n5. Vérifier biques bouchés.\n6. Relais réinitialise automatiquement après refroidissement (10s).',es:'1. Verificar nivel agua depósito.\n2. Si bajo, verificar válvula drenaje cerrada.\n3. Verificar espuma excesiva.\n4. Si sí, añadir antiespuma y drenar agua.\n5. Verificar boquillas obstruidas.\n6. Relé se reinicia automáticamente tras enfriamiento (10s).'},video:false},
+    {level:'warn',title:{pt:'Problema inversor bomba lavagem',en:'Washing Pump Inverter Problem',fr:'Problème inverseur pomba lavage',es:'Problema inversor bomba lavado'},causa:{pt:'Problema no arranque do inversor da bomba de lavagem. Possível falha de alimentação, sobretensão ou inversor danificado.',en:'Problem starting washing pump inverter. Possible power supply failure, overvoltage or damaged inverter.',fr:'Problème démarrage inverseur pompe lavage. Panne alimentation possible, surtension ou inverseur endommagé.',es:'Problema arranque inversor bomba lavado. Posible fallo alimentación, sobretensión o inversor dañado.'},resolucao:{pt:'1. Verificar nível de água no tanque (mínimo necessário).\n2. Verificar tensão de alimentação (≥200V).\n3. Desligar e ligar novamente.\n4. Verificar ligações elétricas do inversor VV1.\n5. Se disparou disjuntor, resetar QF1.\n6. Contactar serviço se persistir.',en:'1. Check water level in tank (minimum required).\n2. Check supply voltage (≥200V).\n3. Switch off and on again.\n4. Check VV1 inverter electrical connections.\n5. If breaker tripped, reset QF1.\n6. Contact service if persists.',fr:'1. Vérifier niveau eau réservoir (minimum requis).\n2. Vérifier tension alimentation (≥200V).\n3. Éteindre et allumer à nouveau.\n4. Vérifier connexions électriques inverseur VV1.\n5. Si disjoncteur déclenché, réinitialiser QF1.\n6. Contacter service si persiste.',es:'1. Verificar nivel agua depósito (mínimo requerido).\n2. Verificar tensión alimentación (≥200V).\n3. Apagar y encender de nuevo.\n4. Verificar conexiones eléctricas inversor VV1.\n5. Si disyuntor disparó, resetear QF1.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'crit',title:{pt:'Termóstato segurança tanque',en:'Tank Safety Thermostat',fr:'Thermostat sécurité réservoir',es:'Termostato seguridad depósito'},causa:{pt:'Temperatura interior do tanque atingiu 100°C. Termóstato de segurança disparou. Desligar imediatamente para evitar danos.',en:'Tank internal temperature reached 100°C. Safety thermostat triggered. Switch off immediately to prevent damage.',fr:'Température interne réservoir atteint 100°C. Thermostat sécurité déclenché. Éteindre immédiatement pour éviter dommages.',es:'Temperatura interna depósito alcanzó 100°C. Termostato seguridad disparado. Apagar inmediatamente para evitar daños.'},resolucao:{pt:'1. DESLIGAR EQUIPAMENTO IMEDIATAMENTE.\n2. Aguardar arrefecimento completo (≥1 hora).\n3. Localizar termóstato S42 no tanque.\n4. Remover tampa preta do termóstato.\n5. Premir o pino interno para resetar.\n6. Se danificado, substituir.\n7. Contactar serviço técnico.',en:'1. SWITCH OFF EQUIPMENT IMMEDIATELY.\n2. Wait for complete cooling (≥1 hour).\n3. Locate S42 thermostat in tank.\n4. Remove black cap from thermostat.\n5. Press internal pin to reset.\n6. If damaged, replace.\n7. Contact technical service.',fr:'1. ÉTEINDRE ÉQUIPEMENT IMMÉDIATEMENT.\n2. Attendre refroidissement complet (≥1 heure).\n3. Localiser thermostat S42 dans réservoir.\n4. Retirer bouchon noir du thermostat.\n5. Appuyer sur le pin interne pour réinitialiser.\n6. Si endommagé, remplacer.\n7. Contacter service technique.',es:'1. APAGAR EQUIPO INMEDIATAMENTE.\n2. Esperar enfriamiento completo (≥1 hora).\n3. Localizar termostato S42 en depósito.\n4. Retirar tapa negra del termostato.\n5. Presionar el pin interno para resetear.\n6. Si está dañado, reemplazar.\n7. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Disjuntor inversor rotação',en:'Rotation Inverter Breaker',fr:'Disjoncteur inverseur rotation',es:'Disyuntor inversor rotación'},causa:{pt:'Disjuntor do inversor de rotação disparou. Possível sobrecarga, curto-circuito ou problema mecânico.',en:'Rotation inverter breaker tripped. Possible overload, short circuit or mechanical problem.',fr:'Disjoncteur inverseur rotation déclenché. Surcharge possible, court-circuit ou problème mécanique.',es:'Disyuntor inversor rotación disparado. Posible sobrecarga, cortocircuito o problema mecánico.'},resolucao:{pt:'1. Localizar disjuntor QF11 no quadro elétrico.\n2. Empurrar alavanca para ligar (se estava desligado).\n3. Se disparou novamente, desligar e reinspecionar.\n4. Verificar se plataforma roda livremente.\n5. Verificar ligações do motor M11.\n6. Contactar serviço se persistir.',en:'1. Locate QF11 breaker in electrical panel.\n2. Push lever to switch on (if was off).\n3. If tripped again, switch off and re-inspect.\n4. Check if platform rotates freely.\n5. Check M11 motor connections.\n6. Contact service if persists.',fr:'1. Localiser disjoncteur QF11 tableau électrique.\n2. Appuyer levier pour allumer (si était off).\n3. Si redéclenché, éteindre et réinspecter.\n4. Vérifier rotation libre plate-forme.\n5. Vérifier connexions moteur M11.\n6. Contacter service si persiste.',es:'1. Localizar disyuntor QF11 en cuadro eléctrico.\n2. Empujar palanca para encender (si estaba apagado).\n3. Si disparó nuevamente, apagar e inspeccionar.\n4. Verificar rotación libre plataforma.\n5. Verificar conexiones motor M11.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'info',title:{pt:'Sensor nível mínimo',en:'Minimum Level Sensor',fr:'Capteur niveau minimum',es:'Sensor nivel mínimo'},causa:{pt:'Sensor de nível mínimo sujo, bloqueado ou danificado. Leitura imprecisa do nível de água.',en:'Minimum level sensor dirty, blocked or damaged. Inaccurate water level reading.',fr:'Capteur niveau minimum sale, bloqué ou endommagé. Lecture niveau eau imprécise.',es:'Sensor nivel mínimo sucio, bloqueado o dañado. Lectura nivel agua imprecisa.'},resolucao:{pt:'1. Desligar equipamento.\n2. Localizar sensor S34 (flutuador no tanque).\n3. Remover e limpar sensor com pano macio.\n4. Verificar mangueira de detecção por entupimentos.\n5. Reinserir sensor corretamente.\n6. Testar leitura.\n7. Se persistir, substituir sensor.',en:'1. Switch off equipment.\n2. Locate S34 sensor (float in tank).\n3. Remove and clean sensor with soft cloth.\n4. Check detection hose for clogs.\n5. Reinsert sensor correctly.\n6. Test reading.\n7. If persists, replace sensor.',fr:'1. Éteindre équipement.\n2. Localiser capteur S34 (flotteur dans réservoir).\n3. Retirer et nettoyer capteur avec pano mou.\n4. Vérifier tuyau détection pour bouchage.\n5. Réinsérer capteur correctement.\n6. Tester lecture.\n7. Si persiste, remplacer capteur.',es:'1. Apagar equipo.\n2. Localizar sensor S34 (flotador en depósito).\n3. Retirar y limpiar sensor con paño suave.\n4. Verificar manguera detección por atascamientos.\n5. Reinsertar sensor correctamente.\n6. Probar lectura.\n7. Si persiste, reemplazar sensor.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R2 caldeira',en:'Boiler Heating Element R2',fr:'Élément chauffage R2 chaudière',es:'Elemento calefacción R2 caldera'},causa:{pt:'Elemento de aquecimento R2 da caldeira com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Boiler heating element R2 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R2 chaudière consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R2 caldera consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF2 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R2 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF2 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R2 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF2 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R2 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF2 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R2 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R3 caldeira',en:'Boiler Heating Element R3',fr:'Élément chauffage R3 chaudière',es:'Elemento calefacción R3 caldera'},causa:{pt:'Elemento de aquecimento R3 da caldeira com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Boiler heating element R3 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R3 chaudière consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R3 caldera consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF3 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R3 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF3 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R3 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF3 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R3 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF3 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R3 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R4 tanque',en:'Tank Heating Element R4',fr:'Élément chauffage R4 réservoir',es:'Elemento calefacción R4 depósito'},causa:{pt:'Elemento de aquecimento R4 do tanque com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Tank heating element R4 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R4 réservoir consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R4 depósito consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF4 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R4 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF4 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R4 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF4 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R4 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF4 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R4 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R5 tanque',en:'Tank Heating Element R5',fr:'Élément chauffage R5 réservoir',es:'Elemento calefacción R5 depósito'},causa:{pt:'Elemento de aquecimento R5 do tanque com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Tank heating element R5 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R5 réservoir consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R5 depósito consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF5 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R5 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF5 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R5 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF5 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R5 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF5 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R5 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R6 tanque',en:'Tank Heating Element R6',fr:'Élément chauffage R6 réservoir',es:'Elemento calefacción R6 depósito'},causa:{pt:'Elemento de aquecimento R6 do tanque com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Tank heating element R6 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R6 réservoir consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R6 depósito consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF6 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R6 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF6 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R6 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF6 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R6 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF6 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R6 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Elemento aquecimento R7 tanque',en:'Tank Heating Element R7',fr:'Élément chauffage R7 réservoir',es:'Elemento calefacción R7 depósito'},causa:{pt:'Elemento de aquecimento R7 do tanque com excesso de consumo. Possível curto-circuito ou sobrecarga.',en:'Tank heating element R7 with excessive consumption. Possible short circuit or overload.',fr:'Élément chauffage R7 réservoir consommation excessive. Court-circuit possible ou surcharge.',es:'Elemento calefacción R7 depósito consumo excesivo. Posible cortocircuito o sobrecarga.'},resolucao:{pt:'1. Localizar disjuntor QF7 no quadro elétrico.\n2. Resetar o disjuntor (alavanca para centro, depois para cima).\n3. Se disparar novamente em poucos minutos, contactar serviço.\n4. Não forçar o disjuntor se persistir.\n5. R7 pode estar danificado — substituição necessária.\n6. Contactar serviço técnico.',en:'1. Locate QF7 breaker in electrical panel.\n2. Reset the breaker (lever to center, then up).\n3. If trips again within minutes, contact service.\n4. Do not force breaker if persists.\n5. R7 may be damaged — replacement needed.\n6. Contact technical service.',fr:'1. Localiser disjoncteur QF7 tableau électrique.\n2. Réinitialiser le disjoncteur (levier centre, puis haut).\n3. Si redéclenche en quelques minutes, contacter service.\n4. Ne pas forcer disjoncteur si persiste.\n5. R7 peut être endommagé — remplacement nécessaire.\n6. Contacter service technique.',es:'1. Localizar disyuntor QF7 en cuadro eléctrico.\n2. Resetear disyuntor (palanca centro, luego arriba).\n3. Si dispara de nuevo en minutos, contactar servicio.\n4. No forzar disyuntor si persiste.\n5. R7 puede estar dañado — reemplazo necesario.\n6. Contactar servicio técnico.'},video:false},
+    {level:'info',title:{pt:'Sonda PT100-2 caldeira V2',en:'Boiler PT100-2 Sensor V2',fr:'Capteur PT100-2 chaudière V2',es:'Sensor PT100-2 caldera V2'},causa:{pt:'Sonda de temperatura da caldeira MWSV2 danificada ou desligada. Substituir sonda. Contactar serviço técnico.',en:'MWSV2 boiler temperature probe damaged or disconnected. Replace probe. Contact technical service.',fr:'Sonde de température chaudière MWSV2 endommagée ou déconnectée. Remplacer sonde. Contacter service technique.',es:'Sonda de temperatura caldera MWSV2 dañada o desconectada. Reemplazar sonda. Contactar servicio técnico.'},resolucao:{pt:'1. Desligar equipamento.\n2. Localizar sonda PT100-2 MWSV2 na caldeira.\n3. Verificar ligações elétricas.\n4. Testar continuidade com ohmiometro.\n5. Se danificada, substituir por sonda MWSV2 igual.\n6. Contactar serviço se persistir.',en:'1. Switch off equipment.\n2. Locate MWSV2 PT100-2 probe in boiler.\n3. Check electrical connections.\n4. Test continuity with ohmmeter.\n5. If damaged, replace with identical MWSV2 probe.\n6. Contact service if persists.',fr:'1. Éteindre équipement.\n2. Localiser sonde PT100-2 MWSV2 chaudière.\n3. Vérifier connexions électriques.\n4. Tester continuité avec ohmmètre.\n5. Si endommagée, remplacer par sonde MWSV2 identique.\n6. Contacter service si persiste.',es:'1. Apagar equipo.\n2. Localizar sonda PT100-2 MWSV2 en caldera.\n3. Verificar conexiones eléctricas.\n4. Probar continuidad con óhmetro.\n5. Si está dañada, reemplazar con sonda MWSV2 idéntica.\n6. Contactar servicio si persiste.'},video:false},
+    {level:'info',title:{pt:'Válvula drenagem automática',en:'Automatic Drain Valve',fr:'Valve drainage automatique',es:'Válvula drenaje automática'},causa:{pt:'Válvula EV19 de drenagem automática com mau funcionamento. Possível objeto estranho no interior da válvula.',en:'Automatic drain valve EV19 malfunctioning. Possible foreign object inside valve.',fr:'Valve drainage automatique EV19 défectueuse. Objet étranger possible à l\'intérieur.',es:'Válvula drenaje automática EV19 defectuosa. Posible objeto extraño dentro de válvula.'},resolucao:{pt:'1. Desligar equipamento.\n2. Localizar válvula EV19 (drenagem do tanque).\n3. Tentar remover qualquer objeto visível.\n4. Limpar entradas e saídas com água corrente.\n5. Testar funcionamento.\n6. Se persistir, contactar serviço técnico para substituição.',en:'1. Switch off equipment.\n2. Locate EV19 valve (tank drainage).\n3. Try removing any visible object.\n4. Clean inlets and outlets with running water.\n5. Test operation.\n6. If persists, contact technical service for replacement.',fr:'1. Éteindre équipement.\n2. Localiser valve EV19 (drainage réservoir).\n3. Essayer retirer objet visible.\n4. Nettoyer entrées-sorties avec eau courante.\n5. Tester fonctionnement.\n6. Si persiste, contacter service technique pour remplacement.',es:'1. Apagar equipo.\n2. Localizar válvula EV19 (drenaje depósito).\n3. Intentar retirar objeto visible.\n4. Limpiar entradas-salidas con agua corriente.\n5. Probar funcionamiento.\n6. Si persiste, contactar servicio técnico para reemplazo.'},video:false}
+  ]
+};
+
+
+
+/* ── HELPERS ── */
+function t(key){ return T[currentLang][key] || T.pt[key] || key; }
+function ml(obj){ return (typeof obj==='object') ? (obj[currentLang]||obj.pt||'') : obj; }
+function $(id){ return document.getElementById(id); }
+
+/* ── THEME ── */
+(function(){
+  if(localStorage.getItem('mw-theme')==='dark') document.body.classList.add('dark');
+})();
+$('btn-theme').addEventListener('click', function(){
+  var dark = document.body.classList.toggle('dark');
+  localStorage.setItem('mw-theme', dark?'dark':'light');
+  updateChartColors();
+});
+
+/* ── LANG ── */
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem('mw-lang', lang);
+  var loc = LOCALE[lang]||'pt-PT';
+  $('top-title').textContent = 'MULTIWASHER · '+t('title');
+  $('lbl-ciclos').textContent = t('kpi_c');
+  $('lbl-dur').textContent = t('kpi_d');
+  $('lbl-energia').textContent = t('kpi_e');
+  $('lbl-alarms').textContent = t('alarms');
+  $('lbl-week').textContent = t('week');
+  $('lbl-prog').textContent = t('prog');
+  $('lbl-cons').textContent = t('cons');
+  $('lbl-online').textContent = t('online');
+  $('lbl-video').textContent = t('video');
+  $('lbl-qr').textContent = t('qr');
+  $('lbl-qr-sub').textContent = t('qr_sub');
+  $('btn-hist').textContent = t('btn_hist');
+  $('btn-catalog').textContent = t('btn_cat');
+  $('login-title').textContent = t('login');
+  $('btn-login').textContent = t('btn_in');
+  $('l-user').placeholder = 'utilizador';
+  $('l-pass').placeholder = 'password';
+  $('hist-title').textContent = t('hist');
+  $('catalog-title').textContent = t('cat');
+  $('sp-title').textContent = t('sp_title');
+  $('sp-sub').textContent = t('sp_sub');
+  $('sp-disclaimer').textContent = t('sp_disc');
+  $('sp-welcome').textContent = t('sp_welcome');
+  $('sp-input').placeholder = t('sp_ph');
+  $('sp-send').textContent = t('sp_send');
+  document.querySelectorAll('.btn-lang').forEach(function(b){
+    b.classList.toggle('active', b.dataset.lang===lang);
+  });
+  rebuildAlarms();
+  updateChartLabels();
+  var n = new Date();
+  $('date2').textContent = n.toLocaleDateString(loc,{timeZone:savedTZ,weekday:'long',day:'2-digit',month:'long'});
+  $('dt').textContent    = n.toLocaleDateString(loc,{timeZone:savedTZ,day:'2-digit',month:'2-digit'});
+}
+document.querySelectorAll('.btn-lang').forEach(function(b){
+  b.addEventListener('click',function(){ applyLang(this.dataset.lang); });
+});
+
+/* ── CLOCK ── */
+function tick(){
+  var loc = LOCALE[currentLang]||'pt-PT';
+  var n = new Date();
+  $('clk').textContent   = n.toLocaleTimeString(loc,{timeZone:savedTZ,hour:'2-digit',minute:'2-digit',hour12:false});
+  $('dt').textContent    = n.toLocaleDateString(loc,{timeZone:savedTZ,day:'2-digit',month:'2-digit'});
+  $('date2').textContent = n.toLocaleDateString(loc,{timeZone:savedTZ,weekday:'long',day:'2-digit',month:'long'});
+}
+tick(); setInterval(tick,1000);
+
+/* ── ALARMS ── */
+function rebuildAlarms(){
+  var list = $('alarm-list');
+  list.innerHTML='';
+  DATA.alarmes.forEach(function(a){
+    var div=document.createElement('div');
+    div.className='alarm '+a.level;
+    div.innerHTML='<span class="alarm-time">'+a.time+'</span>'
+      +'<span class="alarm-mach">'+a.mach+'</span>'
+      +'<span class="alarm-msg">'+ml(a.msg)+'</span>'
+      +'<span class="alarm-badge">'+t('lv')[a.level]+'</span>';
+    div.addEventListener('click',function(){ openAlarmModal(a); });
+    list.appendChild(div);
+  });
+}
+rebuildAlarms();
+
+function openAlarmModal(a){
+  $('m-level').textContent = t('lv')[a.level];
+  $('m-level').style.color = {crit:'#c0392b',warn:'#c2720a',info:'#1a8f6b'}[a.level];
+  $('m-title').textContent = ml(a.msg);
+  $('m-mach').textContent  = 'máquina '+a.mach+' · '+a.time;
+  $('m-desc').textContent = ml(a.desc);
+  
+  var vwrap = $('m-video-wrap');
+  var vid   = $('m-video');
+  if(a.video && typeof a.video === 'string' && a.video.length > 0){
+    vid.src = a.video;
+    vid.load();
+    vwrap.style.display='block';
+  } else {
+    vid.src=''; vid.load();
+    vwrap.style.display='none';
+  }
+  var qrEl=$('qr-canvas');
+  qrEl.innerHTML='<img src="https://res.cloudinary.com/dlkkjtgvy/image/upload/v1774826161/qr-code_manual_ixlbrs.png" style="width:96px;height:96px;border-radius:4px" alt="QR Code">';
+  $('alarm-overlay').classList.add('open');
+}
+
+function closeAlarmModal(){
+  var vid=$('m-video'); vid.pause(); vid.src=''; vid.load();
+  $('alarm-overlay').classList.remove('open');
+}
+$('alarm-close').addEventListener('click',closeAlarmModal);
+$('alarm-overlay').addEventListener('click',function(e){ if(e.target===this) closeAlarmModal(); });
+
+/* ── HISTORY ── */
+function buildHistModal(){
+  $('hist-title').textContent=t('hist');
+  var body=$('hist-body'); body.innerHTML='';
+  DATA.historico.forEach(function(d){
+    if(!d.alarms.length) return;
+    var dayEl=document.createElement('div'); dayEl.className='hist-day';
+    dayEl.textContent=ml(d.day).toUpperCase()+'  '+d.date;
+    body.appendChild(dayEl);
+    d.alarms.forEach(function(a){
+      var row=document.createElement('div'); row.className='hist-row '+a.level;
+      row.innerHTML='<span class="hist-time">'+a.time+'</span>'
+        +'<span class="hist-mach">'+a.mach+'</span>'
+        +'<span class="hist-msg">'+ml(a.msg)+'</span>'
+        +'<span class="hist-badge">'+t('lv')[a.level]+'</span>';
+      body.appendChild(row);
+    });
+  });
+}
+$('btn-hist').addEventListener('click',function(){ buildHistModal(); $('hist-overlay').classList.add('open'); });
+$('hist-close').addEventListener('click',function(){ $('hist-overlay').classList.remove('open'); });
+$('hist-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+
+/* ── CATALOG ── */
+function buildCatalogModal(){
+  $('catalog-title').textContent=t('cat');
+  var body=$('catalog-body'); body.innerHTML='';
+  DATA.catalogo.forEach(function(item,idx){
+    var el=document.createElement('div'); el.className='cat-item '+item.level;
+    // SEMPRE criar a frame (como no dashboard)
+    var vhtml='<div class="cat-body-label" style="margin-top:14px;display:none" id="cvl'+idx+'">'+t('video')+'</div>'
+      +'<div id="cv'+idx+'" class="modal-video-frame" style="border-radius:4px;background:#000;margin-top:6px;display:none"></div>';
+    
+    el.innerHTML='<div class="cat-head">'
+      +'<div class="cat-head-dot '+item.level+'"></div>'
+      +'<div class="cat-head-title">'+ml(item.title)+'</div>'
+      +'<span class="cat-head-badge">'+t('lv')[item.level]+'</span>'
+      +'<span class="cat-chevron">▸</span>'
+      +'</div>'
+      +'<div class="cat-body" id="cb'+idx+'">'
+      +'<div class="cat-body-label">'+t('causa')+'</div>'
+      +'<div class="cat-body-text">'+ml(item.causa)+'</div>'
+      +'<div class="cat-body-label" style="margin-top:12px">'+t('resolucao')+'</div>'
+      +'<div class="cat-body-text" style="white-space:pre-line">'+ml(item.resolucao)+'</div>'
+      +vhtml+'</div>';
+    el.querySelector('.cat-head').addEventListener('click',function(){
+      var b=$('cb'+idx); var ch=el.querySelector('.cat-chevron');
+      var open=b.classList.toggle('open');
+      ch.style.transform=open?'rotate(90deg)':'';
+      var vidContainer=$('cv'+idx);
+      var vidlbl=$('cvl'+idx);
+      if(item.video && typeof item.video === 'string' && item.video.length > 0){
+        // Tem vídeo - mostra frame
+        if(open){
+          vidContainer.innerHTML='<video class="modal-video-frame" controls playsinline muted preload="none" style="border-radius:4px;background:#000"><source src="'+item.video+'" type="video/mp4"></video>';
+          vidContainer.style.display='block';
+          vidlbl.style.display='block';
+        } else { 
+          vidContainer.innerHTML='';
+          vidContainer.style.display='none';
+        }
+      } else {
+        // Sem vídeo - esconde frame
+        vidContainer.style.display='none';
+        vidlbl.style.display='none';
+      }
+    });
+    body.appendChild(el);
+  });
+}
+$('btn-catalog').addEventListener('click',function(){ buildCatalogModal(); $('catalog-overlay').classList.add('open'); });
+$('catalog-close').addEventListener('click',function(){ $('catalog-search').value=''; $('catalog-overlay').classList.remove('open'); });
+$('catalog-overlay').addEventListener('click',function(e){ if(e.target===this){ $('catalog-search').value=''; this.classList.remove('open'); } });
+
+/* Catalog search filter */
+$('catalog-search').addEventListener('input', function(){
+  var query = this.value.toLowerCase();
+  var items = $('catalog-body').querySelectorAll('.cat-item');
+  items.forEach(function(item){
+    var title = item.querySelector('.cat-head-title').textContent.toLowerCase();
+    var causa = item.querySelector('.cat-body-label + .cat-body-text') ? item.querySelector('.cat-body-label + .cat-body-text').textContent.toLowerCase() : '';
+    var match = title.includes(query) || causa.includes(query) || query === '';
+    item.style.display = match ? 'block' : 'none';
+  });
+});
+
+/* ── SETTINGS ── */
+$('btn-settings').addEventListener('click',function(){ $('spicker-overlay').classList.add('open'); });
+$('spicker-close').addEventListener('click',function(){ $('spicker-overlay').classList.remove('open'); });
+$('spicker-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+$('btn-open-wifi').addEventListener('click',function(){ $('spicker-overlay').classList.remove('open'); openLoginFor('wifi'); });
+$('btn-open-equip').addEventListener('click',function(){ $('spicker-overlay').classList.remove('open'); openLoginFor('equip'); });
+
+function openLoginFor(target){
+  $('login-target').value=target;
+  $('l-user').value=''; $('l-pass').value=''; $('l-error').textContent='';
+  $('login-overlay').classList.add('open');
+  setTimeout(function(){ $('l-user').focus(); },100);
+}
+function attemptLogin(){
+  var u=$('l-user').value.trim(), p=$('l-pass').value;
+  var tgt=$('login-target').value;
+  var creds=(tgt==='wifi')?CREDS_WIFI:CREDS_EQUIP;
+  if(u===creds.user&&p===creds.pass){
+    $('login-overlay').classList.remove('open');
+    if(tgt==='wifi') openSettingsWifi(); else openSettingsEquip();
+  } else {
+    $('l-error').textContent=t('err_cred');
+    $('l-pass').value=''; $('l-pass').focus();
+    var lm=$('login-modal');
+    lm.style.transition='transform .07s';
+    [7,-7,4,0].forEach(function(x,i){
+      setTimeout(function(){ lm.style.transform='translateX('+x+'px)'; },i*70);
+    });
+  }
+}
+$('btn-login').addEventListener('click',attemptLogin);
+$('l-pass').addEventListener('keydown',function(e){ if(e.key==='Enter') attemptLogin(); });
+$('l-user').addEventListener('keydown',function(e){ if(e.key==='Enter') $('l-pass').focus(); });
+$('login-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+
+function refreshDisplay(){
+  $('disp-ssid').textContent=savedSSID||'—';
+  $('disp-serial').textContent=savedSerial||'—';
+  $('disp-tz').textContent=savedTZ;
+}
+refreshDisplay();
+
+/* WIFI SETTINGS */
+function openSettingsWifi(){
+  $('wifi-ssid').value=savedSSID; $('wifi-pass').value='';
+  $('wifi-status').textContent=savedSSID?t('wifi_ok')+savedSSID:t('wifi_no');
+  $('wifi-status').className='s-status '+(savedSSID?'ok':'info');
+  $('swifi-overlay').classList.add('open');
+}
+['swifi-close','swifi-cancel'].forEach(function(id){
+  $(id).addEventListener('click',function(){ $('swifi-overlay').classList.remove('open'); });
+});
+$('swifi-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+$('toggle-pass').addEventListener('click',function(){
+  var inp=$('wifi-pass'), show=inp.type==='password';
+  inp.type=show?'text':'password';
+  this.textContent=show?t('hide'):t('show');
+});
+$('swifi-save').addEventListener('click',function(){
+  var ssid=$('wifi-ssid').value.trim(), pass=$('wifi-pass').value;
+  if(ssid&&pass.length<8){ $('wifi-status').textContent=t('wifi_short'); $('wifi-status').className='s-status er'; return; }
+  if(ssid){
+    savedSSID=ssid; localStorage.setItem('mw-ssid',ssid);
+    $('wifi-status').textContent=t('wifi_ok')+ssid; $('wifi-status').className='s-status ok';
+    if(pass.length>=8){
+      fetch('http://localhost:8081/set-wifi',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ssid:ssid,password:pass})}).catch(function(){});
+    }
+    refreshDisplay();
+    setTimeout(function(){ $('swifi-overlay').classList.remove('open'); },600);
+  }
+});
+
+/* EQUIP SETTINGS */
+function openSettingsEquip(){
+  $('serial-input').value=savedSerial; $('tz-select').value=savedTZ;
+  $('serial-status').textContent=savedSerial?t('serial_ok')+savedSerial:t('serial_no');
+  $('serial-status').className='s-status '+(savedSerial?'ok':'info');
+  $('tz-status').textContent='fuso ativo: '+savedTZ; $('tz-status').className='s-status ok';
+  $('sequip-overlay').classList.add('open');
+}
+['sequip-close','sequip-cancel'].forEach(function(id){
+  $(id).addEventListener('click',function(){ $('sequip-overlay').classList.remove('open'); });
+});
+$('sequip-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+$('sequip-save').addEventListener('click',function(){
+  var serial=$('serial-input').value.trim().toUpperCase();
+  var tz=$('tz-select').value;
+  if(serial&&!/^[A-Z0-9\-]{4,}$/.test(serial)){
+    $('serial-status').textContent=t('serial_inv'); $('serial-status').className='s-status er'; return;
+  }
+  if(serial){ savedSerial=serial; localStorage.setItem('mw-serial',serial);
+    $('serial-status').textContent=t('serial_ok')+serial; $('serial-status').className='s-status ok'; }
+  if(tz&&tz!==savedTZ){ savedTZ=tz; localStorage.setItem('mw-tz',tz);
+    $('tz-status').textContent='fuso guardado: '+tz; tick(); }
+  refreshDisplay();
+  setTimeout(function(){ $('sequip-overlay').classList.remove('open'); },600);
+});
+
+/* ── SUPPORT PANEL (DUMMY) ── */
+var spWelcomeEl = $('sp-welcome');
+
+var DUMMY = {
+  pt:[
+    {k:['m311','detergente','doseador','dosea'],r:'Alarme M311 — Nível de detergente baixo. Reabasteça o reservatório de detergente e verifique se a mangueira de aspiração está submersa. Após reabastecimento, efectue um ciclo de purga do doseador.'},
+    {k:['m310','enche','enchimento'],r:'Alarme M310 — Tempo de enchimento excedido. Verifique se a válvula de abastecimento está aberta e se a válvula de drenagem está fechada. Se persistir, contacte o serviço técnico SOMENGIL: +351 234797344.'},
+    {k:['m308','rotação','roda','gira','plataforma'],r:'Alarme M308 — Encravamento da plataforma rotativa. Desligue o equipamento e verifique se existe algum objecto a impedir a rotação no interior. Após remover o obstáculo, reinicie.'},
+    {k:['m306','caldeira','boiler','temperatura alta'],r:'Alarme M306 — Temperatura elevada na caldeira (>100°C). Desligue imediatamente. Aguarde o arrefecimento. Se persistir, contacte o serviço técnico.'},
+    {k:['limpar','limpeza','filtro'],r:'Limpeza diária: 1) Drenar água do tanque. 2) Remover e limpar filtros horizontais. 3) Limpar interior com água limpa. 4) Limpar filtro de segurança da bomba. 5) Fechar válvula de drenagem. Não usar produtos com cloro.'},
+    {k:['manutenção','manutencao','preventiva'],r:'Manutenção preventiva: Diária — limpeza de filtros. Semanal — inspecção de bicos e sensores. Mensal — limpeza de bicos e análise de pressão. Trimestral — descalcificação e lubrificação da bomba. Anual — substituição de vedações.'},
+    {k:['vídeo','video','purga','peristáltica'],r:'Para purgar o doseador: aceda às definições do equipamento → Calibrações → Dosagem → prima o botão de calibração. Aparece QR code com o procedimento completo. Execute 3 medições para calcular a capacidade média da bomba.'},
+    {k:['emergência','emergencia','vermelho','parar'],r:'Botão de emergência activo (M317). Para retomar: 1) Resolva a causa da emergência. 2) Rode o botão vermelho para a direita. 3) Prima RESET no ecrã táctil. O programa terá de ser reiniciado do início.'},
+    {k:['contacto','telefone','somengil','suporte'],r:'Serviço técnico SOMENGIL: Telefone +351 234797344 · Email info@somengil.com · Morada: Zona Industrial de Vagos, Lote 41, 3840-385 Vagos, Portugal.'}
+  ],
+  en:[
+    {k:['m311','detergent','doser','dosing'],r:'Alarm M311 — Low detergent level. Refill the detergent reservoir and check the suction hose is submerged. After refilling, run a dosing purge cycle.'},
+    {k:['m310','fill','filling','tank'],r:'Alarm M310 — Tank filling timeout. Check the supply valve is open and drain valve is closed. If it persists, contact SOMENGIL technical support: +351 234797344.'},
+    {k:['m308','rotation','rotating','platform'],r:'Alarm M308 — Rotating platform jam. Switch off and check for any object blocking rotation inside. After removing obstruction, restart.'},
+    {k:['clean','cleaning','filter'],r:'Daily cleaning: 1) Drain tank water. 2) Remove and clean horizontal filters. 3) Clean interior with clean water. 4) Clean pump safety filter. 5) Close drain valve. Do not use chlorine products.'},
+    {k:['maintenance','preventive'],r:'Preventive maintenance: Daily — filter cleaning. Weekly — nozzle and sensor inspection. Monthly — nozzle cleaning and pressure analysis. Quarterly — descaling and pump lubrication. Yearly — seal replacement.'},
+    {k:['contact','phone','somengil','support'],r:'SOMENGIL technical support: Phone +351 234797344 · Email info@somengil.com · Address: Zona Industrial de Vagos, Lote 41, 3840-385 Vagos, Portugal.'}
+  ],
+  fr:[
+    {k:['m311','détergent','doseur'],r:'Alarme M311 — Niveau de détergent bas. Remplissez le réservoir et vérifiez que le tuyau d\'aspiration est immergé. Effectuez un cycle de purge après remplissage.'},
+    {k:['nettoyage','filtre','nettoyer'],r:'Nettoyage quotidien: 1) Vider le réservoir. 2) Nettoyer les filtres. 3) Nettoyer l\'intérieur. 4) Nettoyer le filtre de la pompe. 5) Fermer la vanne. Ne pas utiliser de produits chlorés.'},
+    {k:['contact','somengil'],r:'Support technique SOMENGIL: Téléphone +351 234797344 · Email info@somengil.com'}
+  ],
+  es:[
+    {k:['m311','detergente','dosificador'],r:'Alarma M311 — Nivel de detergente bajo. Rellene el depósito y verifique que la manguera de aspiración está sumergida. Tras el reabastecimiento, realice un ciclo de purga.'},
+    {k:['limpieza','filtro','limpiar'],r:'Limpieza diaria: 1) Drenar agua del tanque. 2) Limpiar filtros. 3) Limpiar interior. 4) Limpiar filtro de la bomba. 5) Cerrar válvula. No usar productos con cloro.'},
+    {k:['contacto','somengil'],r:'Soporte técnico SOMENGIL: Teléfono +351 234797344 · Email info@somengil.com'}
+  ]
+};
+var DUMMY_FALLBACK = {
+  pt:'Para questões não cobertas aqui, consulte o manual completo ou contacte o serviço técnico SOMENGIL pelo +351 234797344 ou info@somengil.com.',
+  en:'For questions not covered here, consult the full manual or contact SOMENGIL technical support at +351 234797344 or info@somengil.com.',
+  fr:'Pour les questions non couvertes ici, consultez le manuel complet ou contactez le support SOMENGIL au +351 234797344.',
+  es:'Para preguntas no cubiertas aquí, consulte el manual completo o contacte con SOMENGIL en el +351 234797344.'
+};
+
+function getDummyResponse(q){
+  var lang=currentLang, ql=q.toLowerCase();
+  var list=DUMMY[lang]||DUMMY.pt;
+  for(var i=0;i<list.length;i++){
+    for(var j=0;j<list[i].k.length;j++){
+      if(ql.indexOf(list[i].k[j])!==-1) return list[i].r;
+    }
+  }
+  if(lang!=='pt'){
+    var ptList=DUMMY.pt;
+    for(var i=0;i<ptList.length;i++){
+      for(var j=0;j<ptList[i].k.length;j++){
+        if(ql.indexOf(ptList[i].k[j])!==-1) return ptList[i].r;
+      }
+    }
+  }
+  return DUMMY_FALLBACK[lang]||DUMMY_FALLBACK.pt;
+}
+
+function spAddMsg(text,role,extra){
+  var div=document.createElement('div');
+  div.className='sp-msg '+(extra||role);
+  div.textContent=text;
+  $('sp-messages').appendChild(div);
+  $('sp-messages').scrollTop=$('sp-messages').scrollHeight;
+  return div;
+}
+
+function spSend(){
+  var q=$('sp-input').value.trim();
+  if(!q) return;
+  $('sp-input').value='';
+  $('sp-send').disabled=true;
+  if(spWelcomeEl&&spWelcomeEl.parentNode){ spWelcomeEl.parentNode.removeChild(spWelcomeEl); spWelcomeEl=null; }
+  spAddMsg(q,'user');
+  var thinking=spAddMsg(t('sp_think'),'ai','thinking');
+  var delay=1500+Math.random()*1500;
+  setTimeout(function(){
+    if(thinking.parentNode) thinking.parentNode.removeChild(thinking);
+    spAddMsg(getDummyResponse(q),'ai');
+    $('sp-send').disabled=false;
+    $('sp-input').focus();
+  },delay);
+}
+
+$('btn-support').addEventListener('click',function(){
+  $('support-panel').classList.add('open');
+  setTimeout(function(){ $('sp-input').focus(); },300);
+});
+$('sp-close').addEventListener('click',function(){ $('support-panel').classList.remove('open'); });
+$('sp-send').addEventListener('click',spSend);
+$('sp-input').addEventListener('keydown',function(e){ if(e.key==='Enter') spSend(); });
+
+/* ── CHARTS ── */
+var gc='#f0eeea', tc='#bbb', lc='#444';
+var weekChart, progChart, consChart;
+
+function updateChartColors(){
+  var dark=document.body.classList.contains('dark');
+  gc=dark?'#2a2a2a':'#f0eeea'; tc=dark?'#555':'#bbb'; lc=dark?'#edece8':'#444';
+  [weekChart,progChart,consChart].forEach(function(ch){
+    if(!ch) return;
+    if(ch.options.scales){
+      ['x','y'].forEach(function(ax){
+        if(ch.options.scales[ax]){
+          if(ch.options.scales[ax].grid) ch.options.scales[ax].grid.color=gc;
+          if(ch.options.scales[ax].ticks) ch.options.scales[ax].ticks.color=tc;
+        }
+      });
+    }
+    if(ch.options.plugins&&ch.options.plugins.legend&&ch.options.plugins.legend.labels)
+      ch.options.plugins.legend.labels.color=lc;
+    ch.update();
+  });
+}
+
+function updateChartLabels(){
+  var lang=currentLang;
+  if(weekChart){ weekChart.data.labels=T[lang].wlabels; weekChart.update(); }
+  if(progChart){ progChart.data.labels=T[lang].plabels; progChart.update(); }
+  if(consChart){ consChart.data.labels=T[lang].clabels; consChart.update(); }
+}
+
+weekChart = new Chart($('weekChart'),{type:'bar',
+  data:{labels:T[currentLang].wlabels,datasets:[{
+    data:DATA.ciclosSemana,
+    backgroundColor:DATA.ciclosSemana.map(function(_,i){ return i===6?'#1a8f6b':'#cce8df'; }),
+    borderRadius:3,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{enabled:false}},
+    scales:{x:{grid:{display:false},ticks:{color:tc,font:{size:10}}},
+            y:{grid:{color:gc},ticks:{color:tc,font:{size:10}},border:{display:false}}}}});
+
+progChart = new Chart($('progChart'),{type:'bar',
+  data:{labels:T[currentLang].plabels,datasets:[{data:DATA.programas.data,backgroundColor:'#1a8f6b',borderRadius:3,borderSkipped:false}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{enabled:false}},
+    scales:{x:{grid:{display:false},ticks:{color:tc,font:{size:10}},border:{display:false}},
+            y:{grid:{display:false},ticks:{color:lc,font:{size:10}}}}}});
+
+consChart = new Chart($('consChart'),{type:'doughnut',
+  data:{labels:T[currentLang].clabels,datasets:[{data:DATA.consumos.data,
+    backgroundColor:['#1a8f6b','#c2720a','#7bafd4'],borderWidth:0,hoverOffset:4}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+    plugins:{legend:{display:true,position:'right',labels:{color:lc,font:{size:10},boxWidth:8,boxHeight:8,padding:10,usePointStyle:true}},
+             tooltip:{enabled:false},
+             datalabels:{formatter:function(value,ctx){var sum=ctx.dataset.data.reduce(function(a,b){return a+b;},0);var pct=(value*100/sum).toFixed(1);return pct+'%';},color:'#fff',font:{weight:'bold',size:11}}}}});
+
+/* SPARKLINES */
+var hourNow=new Date().getHours();
+var hourLabels=Array.from({length:24},function(_,i){ return i%4===0?i+'h':''; });
+function mkSparkData(raw){ return raw.map(function(v,i){ return i<=hourNow?v:null; }); }
+function sparkOpts(color,fill){
+  return{responsive:true,maintainAspectRatio:false,animation:{duration:600},
+    plugins:{legend:{display:false},tooltip:{enabled:false}},
+    scales:{x:{display:false},y:{display:false}},
+    elements:{line:{borderColor:color,borderWidth:1.5,tension:.4,fill:true,backgroundColor:fill},
+              point:{radius:0,hitRadius:0}}};
+}
+new Chart($('sparkCiclos'),{type:'line',data:{labels:hourLabels,datasets:[{data:mkSparkData(DATA.sparkCiclos)}]},options:sparkOpts('#1a8f6b','rgba(26,143,107,.12)')});
+new Chart($('sparkDur'),{type:'line',data:{labels:hourLabels,datasets:[{data:mkSparkData(DATA.sparkDur)}]},options:sparkOpts('#7bafd4','rgba(123,175,212,.12)')});
+new Chart($('sparkEnergia'),{type:'line',data:{labels:hourLabels,datasets:[{data:mkSparkData(DATA.sparkEnergia)}]},options:sparkOpts('#c2720a','rgba(194,114,10,.12)')});
+
+setTimeout(function(){ window.dispatchEvent(new Event('resize')); },100);
+
+/* APPLY SAVED LANG */
+applyLang(currentLang);
+
+
+/* ── ESTADO DA REDE ── */
+function checkNetwork(){
+  var el = $('net-status');
+  fetch('https://www.google.com/favicon.ico', {mode:'no-cors', cache:'no-store'})
+    .then(function(){ el.className='net-btn online'; el.title='online'; })
+    .catch(function(){ el.className='net-btn offline'; el.title='offline'; });
+}
+checkNetwork();
+setInterval(checkNetwork, 30000);
+</script>
+</body>
+</html>
