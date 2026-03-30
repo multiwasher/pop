@@ -210,6 +210,9 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
 .sp-send:hover{opacity:.85}
 .sp-send:disabled{opacity:.4;cursor:not-allowed}
 
+.sp-example-btn:hover{background:var(--border);border-color:var(--text-mute)}
+.sp-example-btn:active{opacity:.7}
+
 .net-btn{background:none;border:none;cursor:default;padding:4px;display:flex;align-items:center;transition:opacity .3s}
 .net-btn.online svg path,.net-btn.online svg circle{fill:#1a8f6b}
 .net-btn.offline svg path,.net-btn.offline svg circle{fill:#c0392b}
@@ -462,6 +465,12 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
   </div>
   <div class="sp-messages" id="sp-messages">
     <div class="sp-msg ai" id="sp-welcome">Olá! Sou o assistente MULTIWASHER. Posso ajudar com operação, alarmes, limpeza e manutenção. Que questão tem?</div>
+    <div id="sp-examples" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;padding:0 12px">
+      <div style="font-size:9px;color:var(--text-mute);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;padding-left:4px" id="sp-examples-label">Exemplos de questões:</div>
+      <button class="sp-example-btn" data-example="Como limpar os filtros?" style="background:none;border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;color:var(--text-mid);font-family:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s;line-height:1.5">🔧 Como limpar os filtros?</button>
+      <button class="sp-example-btn" data-example="O que é o alarme M311?" style="background:none;border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;color:var(--text-mid);font-family:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s;line-height:1.5">⚠️  O que é o alarme M311?</button>
+      <button class="sp-example-btn" data-example="Como fazer manutenção?" style="background:none;border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;color:var(--text-mid);font-family:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s;line-height:1.5">🛠️  Como fazer manutenção?</button>
+    </div>
   </div>
   <div class="sp-disclaimer" id="sp-disclaimer">modo demonstração · respostas baseadas no manual MWS</div>
   <div class="sp-input-row">
@@ -513,7 +522,8 @@ var T = {
        sp_disc:'modo demonstração · respostas baseadas no manual MWS',
        sp_ph:'escreva a sua questão...', sp_send:'enviar',
        sp_think:'a consultar o manual...',
-       sp_welcome:'Olá! Sou o assistente MULTIWASHER. Posso ajudar com operação, alarmes, limpeza e manutenção. Que questão tem?' },
+       sp_welcome:'Olá! Sou o assistente MULTIWASHER. Posso ajudar com operação, alarmes, limpeza e manutenção. Que questão tem?',
+       sp_examples:'Exemplos de questões:' },
   en:{ title:'operational panel', kpi_c:'cycles today', kpi_d:'avg duration', kpi_e:'energy used',
        alarms:'alarms — today', hint:'tap for details', week:'cycles — last 7 days',
        prog:'programs today', cons:'avg consumption / cycle', online:'online · updates 30s',
@@ -533,7 +543,8 @@ var T = {
        sp_disc:'demo mode · answers based on MWS manual',
        sp_ph:'type your question...', sp_send:'send',
        sp_think:'consulting manual...',
-       sp_welcome:'Hello! I am the MULTIWASHER assistant. I can help with operation, alarms, cleaning and maintenance.' },
+       sp_welcome:'Hello! I am the MULTIWASHER assistant. I can help with operation, alarms, cleaning and maintenance.',
+       sp_examples:'Example questions:' },
   fr:{ title:'tableau de bord', kpi_c:'cycles aujourd\'hui', kpi_d:'durée moyenne', kpi_e:'énergie consommée',
        alarms:'alarmes — aujourd\'hui', hint:'toucher pour détails', week:'cycles — 7 derniers jours',
        prog:'programmes aujourd\'hui', cons:'consommation moy. / cycle', online:'en ligne · actualise 30s',
@@ -553,7 +564,8 @@ var T = {
        sp_disc:'mode démo · réponses basées sur le manuel MWS',
        sp_ph:'écrivez votre question...', sp_send:'envoyer',
        sp_think:'consultation du manuel...',
-       sp_welcome:'Bonjour! Je suis l\'assistant MULTIWASHER. Je peux aider avec l\'opération, les alarmes, le nettoyage.' },
+       sp_welcome:'Bonjour! Je suis l\'assistant MULTIWASHER. Je peux aider avec l\'opération, les alarmes, le nettoyage.',
+       sp_examples:'Exemples de questions:' },
   es:{ title:'panel operacional', kpi_c:'ciclos hoy', kpi_d:'duración media', kpi_e:'energía consumida',
        alarms:'alarmas — hoy', hint:'toca para detalles', week:'ciclos — últimos 7 días',
        prog:'programas hoy', cons:'consumo medio / ciclo', online:'en línea · actualiza 30s',
@@ -573,7 +585,8 @@ var T = {
        sp_disc:'modo demo · respuestas del manual MWS',
        sp_ph:'escriba su pregunta...', sp_send:'enviar',
        sp_think:'consultando el manual...',
-       sp_welcome:'¡Hola! Soy el asistente MULTIWASHER. Puedo ayudar con operación, alarmas, limpieza y mantenimiento.' }
+       sp_welcome:'¡Hola! Soy el asistente MULTIWASHER. Puedo ayudar con operación, alarmas, limpieza y mantenimiento.',
+       sp_examples:'Preguntas de ejemplo:' }
 };
 var LOCALE = { pt:'pt-PT', en:'en-GB', fr:'fr-FR', es:'es-ES' };
 
@@ -733,6 +746,9 @@ function applyLang(lang){
   $('sp-welcome').textContent = t('sp_welcome');
   $('sp-input').placeholder = t('sp_ph');
   $('sp-send').textContent = t('sp_send');
+  $('sp-examples-label').textContent = t('sp_examples');
+  // Update example questions
+  updateExampleQuestions(lang);
   document.querySelectorAll('.btn-lang').forEach(function(b){
     b.classList.toggle('active', b.dataset.lang===lang);
   });
@@ -1021,11 +1037,11 @@ var DUMMY = {
     {k:['contacto','somengil'],r:'Soporte técnico SOMENGIL: Teléfono +351 234797344 · Email info@somengil.com'}
   ]
 };
-var DUMMY_FALLBACK = {
-  pt:'Para questões não cobertas aqui, consulte o manual completo ou contacte o serviço técnico SOMENGIL pelo +351 234797344 ou info@somengil.com.',
-  en:'For questions not covered here, consult the full manual or contact SOMENGIL technical support at +351 234797344 or info@somengil.com.',
-  fr:'Pour les questions non couvertes ici, consultez le manuel complet ou contactez le support SOMENGIL au +351 234797344.',
-  es:'Para preguntas no cubiertas aquí, consulte el manual completo o contacte con SOMENGIL en el +351 234797344.'
+var EXAMPLES = {
+  pt:['Como limpar os filtros?','O que é o alarme M311?','Como fazer manutenção?'],
+  en:['How to clean the filters?','What is alarm M311?','How to perform maintenance?'],
+  fr:['Comment nettoyer les filtres?','Qu\'est-ce que l\'alarme M311?','Comment faire la maintenance?'],
+  es:['¿Cómo limpiar los filtros?','¿Qué es la alarma M311?','¿Cómo hacer mantenimiento?']
 };
 
 function getDummyResponse(q){
@@ -1062,6 +1078,8 @@ function spSend(){
   $('sp-input').value='';
   $('sp-send').disabled=true;
   if(spWelcomeEl&&spWelcomeEl.parentNode){ spWelcomeEl.parentNode.removeChild(spWelcomeEl); spWelcomeEl=null; }
+  var examplesEl = $('sp-examples');
+  if(examplesEl&&examplesEl.parentNode) examplesEl.parentNode.removeChild(examplesEl);
   spAddMsg(q,'user');
   var thinking=spAddMsg(t('sp_think'),'ai','thinking');
   var delay=1500+Math.random()*1500;
@@ -1080,6 +1098,27 @@ $('btn-support').addEventListener('click',function(){
 $('sp-close').addEventListener('click',function(){ $('support-panel').classList.remove('open'); });
 $('sp-send').addEventListener('click',spSend);
 $('sp-input').addEventListener('keydown',function(e){ if(e.key==='Enter') spSend(); });
+
+/* Support Panel Example Questions */
+function updateExampleQuestions(lang){
+  var examples = EXAMPLES[lang] || EXAMPLES.pt;
+  var btns = document.querySelectorAll('.sp-example-btn');
+  btns.forEach(function(btn, idx){
+    if(idx < examples.length){
+      btn.setAttribute('data-example', examples[idx]);
+      btn.textContent = ['🔧','⚠️','🛠️'][idx] + ' ' + examples[idx];
+    }
+  });
+}
+
+document.querySelectorAll('.sp-example-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var example = this.getAttribute('data-example');
+    $('sp-input').value = example;
+    $('sp-input').focus();
+    spSend();
+  });
+});
 
 /* ── CHARTS ── */
 var gc='#f0eeea', tc='#bbb', lc='#444';
