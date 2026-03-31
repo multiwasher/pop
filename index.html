@@ -245,6 +245,7 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
     </button>
     <button class="btn-icon" id="btn-theme" title="tema">◑</button>
     <button class="btn-txt btn-support" id="btn-support">✦ Ai</button>
+    <button class="btn-txt" id="btn-ruuvi" style="display:none;border-color:#7bafd4;color:#7bafd4" title="Área Técnica">🌡</button>
     <button class="btn-txt" id="btn-settings">⚙</button>
   </div>
 </div>
@@ -411,6 +412,15 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
     </div>
     <hr class="s-divider">
     <div class="s-section">
+      <div class="s-label">talk2m — ligação</div>
+      <div class="s-field"><span class="s-field-icon">◎</span><input type="text" id="t2m-account" placeholder="account name" autocomplete="off" spellcheck="false"></div>
+      <div class="s-field" style="margin-top:8px"><span class="s-field-icon">◎</span><input type="text" id="t2m-user" placeholder="username" autocomplete="off" spellcheck="false"></div>
+      <div class="s-field" style="margin-top:8px"><span class="s-field-icon">◈</span><input type="password" id="t2m-pass" placeholder="password" autocomplete="off"><button class="s-toggle" id="toggle-t2m-pass">mostrar</button></div>
+      <div class="s-field" style="margin-top:8px"><span class="s-field-icon">◇</span><input type="text" id="t2m-devid" placeholder="developer ID" autocomplete="off" spellcheck="false"></div>
+      <div class="s-status info" id="t2m-status">não configurado</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-section">
       <div class="s-label">fuso horário</div>
       <div class="s-field">
         <span class="s-field-icon">◷</span>
@@ -444,6 +454,7 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
     <div class="s-section" style="margin-bottom:0">
       <div class="s-label">estado atual</div>
       <div class="s-row"><span class="s-key">nº série</span><span class="s-val" id="disp-serial">—</span></div>
+      <div class="s-row"><span class="s-key">talk2m</span><span class="s-val" id="disp-t2m">—</span></div>
       <div class="s-row"><span class="s-key">fuso</span><span class="s-val" id="disp-tz">—</span></div>
       <div class="s-row"><span class="s-key">firmware</span><span class="s-val">v2.4.1</span></div>
     </div>
@@ -451,6 +462,64 @@ body{background:var(--bg);font-family:'SF Mono','Fira Mono',monospace;color:var(
       <button class="btn-cancel" id="sequip-cancel">cancelar</button>
       <button class="btn-save" id="sequip-save">guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- RUUVI MODAL -->
+<div class="overlay" id="ruuvi-overlay">
+  <div class="modal" style="width:420px">
+    <button class="modal-close" id="ruuvi-close">✕</button>
+    <div class="modal-level" style="color:#7bafd4;letter-spacing:2px">ÁREA TÉCNICA</div>
+    <div class="modal-title" style="margin-bottom:16px">Monitorização da Zona da Bomba</div>
+    <div id="ruuvi-status-bar" style="font-size:10px;color:var(--text-mute);margin-bottom:16px;letter-spacing:1px">
+      <span id="ruuvi-last-update">a aguardar dados...</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:var(--modal-desc-bg);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center">
+        <div style="font-size:20px;margin-bottom:6px">🌡</div>
+        <div style="font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Temperatura</div>
+        <div id="ruuvi-temp" style="font-size:24px;font-weight:400;color:var(--text)">—</div>
+        <div style="font-size:10px;color:var(--text-mute)">°C</div>
+      </div>
+      <div style="background:var(--modal-desc-bg);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center">
+        <div style="font-size:20px;margin-bottom:6px">💧</div>
+        <div style="font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Humidade</div>
+        <div id="ruuvi-hum" style="font-size:24px;font-weight:400;color:var(--text)">—</div>
+        <div style="font-size:10px;color:var(--text-mute)">%</div>
+      </div>
+      <div style="background:var(--modal-desc-bg);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center">
+        <div style="font-size:20px;margin-bottom:6px">📳</div>
+        <div style="font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Vibração</div>
+        <div id="ruuvi-vib" style="font-size:14px;font-weight:400;color:#1a8f6b">—</div>
+        <div style="font-size:10px;color:var(--text-mute)" id="ruuvi-vib-val">—</div>
+      </div>
+    </div>
+    <div style="background:var(--modal-desc-bg);border:1px solid var(--border);border-radius:6px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:9px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">🔋 Bateria RuuviTag</div>
+        <div id="ruuvi-batt" style="font-size:13px;color:var(--text-mid)">—</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;color:var(--text-mute);letter-spacing:1px">Kit Retrofit</div>
+        <div style="font-size:9px;color:#7bafd4">RuuviTag Pro 3-in-1</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:10px;color:var(--text-mute);text-align:center;letter-spacing:.5px">
+      dados via Bluetooth · actualiza a cada 30s
+    </div>
+  </div>
+</div>
+
+<!-- LICENCE BLOCK SCREEN -->
+<div id="licence-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;flex-direction:column;align-items:center;justify-content:center">
+  <div style="text-align:center;max-width:360px;padding:40px">
+    <div style="font-size:32px;margin-bottom:20px">🔒</div>
+    <div style="font-size:11px;letter-spacing:3px;color:var(--text-mute);text-transform:uppercase;margin-bottom:12px">MULTIWASHER Smart Display</div>
+    <div style="font-size:16px;color:var(--text);margin-bottom:8px">Activação necessária</div>
+    <div style="font-size:12px;color:var(--text-mute);line-height:1.7;margin-bottom:24px">Este display não está activado ou a licença expirou. Configure o número de série nas definições e certifique-se de que tem ligação à internet.</div>
+    <div style="font-size:11px;color:var(--text-dim);padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:16px" id="licence-serial-info">Serial: não configurado</div>
+    <div style="font-size:10px;color:var(--text-mute)">Contacto: suporte@multiwasher.pt</div>
+    <button id="licence-retry" style="margin-top:20px;background:none;border:1px solid var(--border);border-radius:4px;padding:8px 20px;font-size:10px;color:var(--text-dim);font-family:inherit;letter-spacing:1px;cursor:pointer">↻ tentar novamente</button>
   </div>
 </div>
 
@@ -500,6 +569,11 @@ var currentLang = localStorage.getItem('mw-lang') || 'pt';
 var savedSSID   = localStorage.getItem('mw-ssid')   || '';
 var savedSerial = localStorage.getItem('mw-serial') || '';
 var savedTZ     = localStorage.getItem('mw-tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon';
+var savedT2mAccount = localStorage.getItem('mw-t2m-account') || '';
+var savedT2mUser    = localStorage.getItem('mw-t2m-user')    || '';
+var savedT2mPass    = localStorage.getItem('mw-t2m-pass')    || '';
+var savedT2mDevId   = localStorage.getItem('mw-t2m-devid')   || '';
+var t2mConfigured   = !!(savedT2mAccount && savedT2mUser && savedT2mPass && savedT2mDevId);
 
 /* ── I18N ── */
 var T = {
@@ -939,12 +1013,7 @@ $('l-pass').addEventListener('keydown',function(e){ if(e.key==='Enter') attemptL
 $('l-user').addEventListener('keydown',function(e){ if(e.key==='Enter') $('l-pass').focus(); });
 $('login-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
 
-function refreshDisplay(){
-  $('disp-ssid').textContent=savedSSID||'—';
-  $('disp-serial').textContent=savedSerial||'—';
-  $('disp-tz').textContent=savedTZ;
-}
-refreshDisplay();
+/* refreshDisplay — defined above with Talk2M */
 
 /* WIFI SETTINGS */
 function openSettingsWifi(){
@@ -977,31 +1046,11 @@ $('swifi-save').addEventListener('click',function(){
   }
 });
 
-/* EQUIP SETTINGS */
-function openSettingsEquip(){
-  $('serial-input').value=savedSerial; $('tz-select').value=savedTZ;
-  $('serial-status').textContent=savedSerial?t('serial_ok')+savedSerial:t('serial_no');
-  $('serial-status').className='s-status '+(savedSerial?'ok':'info');
-  $('tz-status').textContent='fuso ativo: '+savedTZ; $('tz-status').className='s-status ok';
-  $('sequip-overlay').classList.add('open');
-}
+/* EQUIP SETTINGS — handled above with Talk2M */
 ['sequip-close','sequip-cancel'].forEach(function(id){
   $(id).addEventListener('click',function(){ $('sequip-overlay').classList.remove('open'); });
 });
 $('sequip-overlay').addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
-$('sequip-save').addEventListener('click',function(){
-  var serial=$('serial-input').value.trim().toUpperCase();
-  var tz=$('tz-select').value;
-  if(serial&&!/^[A-Z0-9\-]{4,}$/.test(serial)){
-    $('serial-status').textContent=t('serial_inv'); $('serial-status').className='s-status er'; return;
-  }
-  if(serial){ savedSerial=serial; localStorage.setItem('mw-serial',serial);
-    $('serial-status').textContent=t('serial_ok')+serial; $('serial-status').className='s-status ok'; }
-  if(tz&&tz!==savedTZ){ savedTZ=tz; localStorage.setItem('mw-tz',tz);
-    $('tz-status').textContent='fuso guardado: '+tz; tick(); }
-  refreshDisplay();
-  setTimeout(function(){ $('sequip-overlay').classList.remove('open'); },600);
-});
 
 /* ── SUPPORT PANEL (DUMMY) ── */
 var spWelcomeEl = $('sp-welcome');
@@ -1225,7 +1274,223 @@ setTimeout(function(){ window.dispatchEvent(new Event('resize')); },100);
 applyLang(currentLang);
 
 
-/* ── ESTADO DA REDE ── */
+/* ── TALK2M SETTINGS ── */
+$('toggle-t2m-pass').addEventListener('click', function(){
+  var inp = $('t2m-pass'), show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  this.textContent = show ? 'ocultar' : 'mostrar';
+});
+
+/* ── EQUIP SETTINGS — extended with Talk2M ── */
+function openSettingsEquip(){
+  $('serial-input').value = savedSerial;
+  $('tz-select').value = savedTZ;
+  $('t2m-account').value = savedT2mAccount;
+  $('t2m-user').value = savedT2mUser;
+  $('t2m-pass').value = savedT2mPass ? '••••••••' : '';
+  $('t2m-devid').value = savedT2mDevId;
+  $('serial-status').textContent = savedSerial ? t('serial_ok') + savedSerial : t('serial_no');
+  $('serial-status').className = 's-status ' + (savedSerial ? 'ok' : 'info');
+  $('tz-status').textContent = 'fuso ativo: ' + savedTZ;
+  $('tz-status').className = 's-status ok';
+  var t2mOk = !!(savedT2mAccount && savedT2mUser && savedT2mPass && savedT2mDevId);
+  $('t2m-status').textContent = t2mOk ? '✓ configurado — ' + savedT2mAccount : 'não configurado';
+  $('t2m-status').className = 's-status ' + (t2mOk ? 'ok' : 'info');
+  $('sequip-overlay').classList.add('open');
+}
+
+$('sequip-save').addEventListener('click', function(){
+  var serial = $('serial-input').value.trim().toUpperCase();
+  var tz = $('tz-select').value;
+  var acc = $('t2m-account').value.trim();
+  var usr = $('t2m-user').value.trim();
+  var pas = $('t2m-pass').value;
+  var dev = $('t2m-devid').value.trim();
+
+  if(serial && !/^[A-Z0-9\-]{4,}$/.test(serial)){
+    $('serial-status').textContent = t('serial_inv');
+    $('serial-status').className = 's-status er';
+    return;
+  }
+  if(serial){ savedSerial = serial; localStorage.setItem('mw-serial', serial);
+    $('serial-status').textContent = t('serial_ok') + serial;
+    $('serial-status').className = 's-status ok'; }
+  if(tz && tz !== savedTZ){ savedTZ = tz; localStorage.setItem('mw-tz', tz);
+    $('tz-status').textContent = 'fuso guardado: ' + tz; tick(); }
+
+  if(acc){ savedT2mAccount = acc; localStorage.setItem('mw-t2m-account', acc); }
+  if(usr){ savedT2mUser = usr; localStorage.setItem('mw-t2m-user', usr); }
+  if(pas && pas !== '••••••••'){ savedT2mPass = pas; localStorage.setItem('mw-t2m-pass', pas); }
+  if(dev){ savedT2mDevId = dev; localStorage.setItem('mw-t2m-devid', dev); }
+
+  t2mConfigured = !!(savedT2mAccount && savedT2mUser && savedT2mPass && savedT2mDevId);
+  refreshDisplay();
+  setTimeout(function(){ $('sequip-overlay').classList.remove('open'); }, 600);
+});
+
+/* ── REFRESH DISPLAY extended ── */
+function refreshDisplay(){
+  $('disp-ssid').textContent = savedSSID || '—';
+  $('disp-serial').textContent = savedSerial || '—';
+  $('disp-t2m').textContent = t2mConfigured ? '✓ ' + savedT2mAccount : '—';
+  $('disp-tz').textContent = savedTZ;
+}
+refreshDisplay();
+
+/* ── RUUVI MODAL ── */
+var ruuviData = null;
+var ruuviTimer = null;
+
+function fetchRuuviData(){
+  // Lê dados do RuuviTag via API local (porta 8082)
+  // Se não disponível, mostra estado de demo
+  fetch('http://localhost:8082/ruuvi', { signal: AbortSignal.timeout(3000) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ ruuviData = d; updateRuuviModal(); })
+    .catch(function(){
+      // Demo mode — dados simulados
+      ruuviData = {
+        temp: (22.4 + Math.random() * 2 - 1).toFixed(1),
+        hum: (58 + Math.random() * 4 - 2).toFixed(1),
+        accel: (Math.random() * 0.08).toFixed(3),
+        battery: 2987,
+        demo: true
+      };
+      updateRuuviModal();
+    });
+}
+
+function updateRuuviModal(){
+  if(!ruuviData) return;
+  $('ruuvi-temp').textContent = ruuviData.temp;
+  $('ruuvi-hum').textContent = ruuviData.hum;
+
+  var accel = parseFloat(ruuviData.accel);
+  var vibStatus = accel < 0.05 ? 'Normal' : accel < 0.15 ? 'Atenção' : 'Anormal';
+  var vibColor = accel < 0.05 ? '#1a8f6b' : accel < 0.15 ? '#c2720a' : '#c0392b';
+  $('ruuvi-vib').textContent = vibStatus;
+  $('ruuvi-vib').style.color = vibColor;
+  $('ruuvi-vib-val').textContent = ruuviData.accel + ' g';
+
+  var mv = parseInt(ruuviData.battery);
+  var battPct = Math.min(100, Math.max(0, Math.round((mv - 2000) / (3200 - 2000) * 100)));
+  $('ruuvi-batt').textContent = battPct + '% (' + mv + ' mV)';
+
+  var now = new Date();
+  $('ruuvi-last-update').textContent = (ruuviData.demo ? '● demo · ' : '● ao vivo · ') +
+    'última leitura: ' + now.toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+  // Mostra botão se tiver dados
+  $('btn-ruuvi').style.display = 'inline-flex';
+}
+
+$('btn-ruuvi').addEventListener('click', function(){
+  $('ruuvi-overlay').classList.add('open');
+  fetchRuuviData();
+  ruuviTimer = setInterval(fetchRuuviData, 30000);
+});
+$('ruuvi-close').addEventListener('click', function(){
+  $('ruuvi-overlay').classList.remove('open');
+  if(ruuviTimer) clearInterval(ruuviTimer);
+});
+$('ruuvi-overlay').addEventListener('click', function(e){
+  if(e.target === this){
+    this.classList.remove('open');
+    if(ruuviTimer) clearInterval(ruuviTimer);
+  }
+});
+
+// Verificar se RuuviTag disponível ao arrancar (silencioso)
+// Em demo mode: mostrar sempre o botão após 1s com dados simulados
+setTimeout(function(){
+  fetch('http://localhost:8082/ruuvi', { signal: AbortSignal.timeout(2000) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ ruuviData = d; $('btn-ruuvi').style.display = 'inline-flex'; })
+    .catch(function(){
+      // Sem API local — activar modo demo automaticamente
+      ruuviData = {
+        temp: (22.4 + Math.random() * 2 - 1).toFixed(1),
+        hum: (58 + Math.random() * 4 - 2).toFixed(1),
+        accel: (Math.random() * 0.04).toFixed(3),
+        battery: 2987,
+        demo: true
+      };
+      $('btn-ruuvi').style.display = 'inline-flex';
+    });
+}, 1000);
+
+/* ── LICENCE CHECK ── */
+var LICENCE_SERVER = 'https://fragoso.pythonanywhere.com/verify';
+var CACHE_KEY = 'mw-licence-cache';
+var CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
+
+function checkLicence(){
+  var serial = localStorage.getItem('mw-serial') || '';
+  if(!serial){
+    // Sem serial → modo demo, não bloqueia
+    return;
+  }
+
+  // Verificar cache primeiro
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e){}
+  var now = Date.now();
+
+  if(cached && cached.serial === serial && cached.authorised && (now - cached.ts) < CACHE_TTL){
+    // Cache válida — não precisa de verificar online
+    return;
+  }
+
+  // Tentar verificar online
+  fetch(LICENCE_SERVER + '?serial=' + encodeURIComponent(serial), {
+    signal: AbortSignal.timeout(8000)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.authorised){
+      // Guardar na cache
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        serial: serial, authorised: true, ts: now
+      }));
+    } else {
+      // Não autorizado — bloquear
+      showLicenceBlock(serial);
+    }
+  })
+  .catch(function(){
+    // Sem internet — verificar cache (mesmo expirada, dar benefício da dúvida)
+    if(cached && cached.serial === serial && cached.authorised){
+      // Cache existe mas expirada — mostrar aviso subtil mas não bloquear
+      console.warn('MWS: licence cache expired, running offline');
+    }
+    // Se nunca teve cache → não bloquear (primeiro arranque pode ser offline)
+  });
+}
+
+function showLicenceBlock(serial){
+  $('licence-serial-info').textContent = 'Serial: ' + serial;
+  var ls = $('licence-screen');
+  ls.style.display = 'flex';
+}
+
+$('licence-retry').addEventListener('click', function(){
+  $('licence-screen').style.display = 'none';
+  checkLicence();
+});
+
+// Verificar licença ao arrancar (após 2s para não atrasar UI)
+setTimeout(checkLicence, 2000);
+
+// Verificar de 24 em 24 horas
+setInterval(checkLicence, 24 * 60 * 60 * 1000);
+
+/* ── DUMMY FALLBACK ── */
+var DUMMY_FALLBACK = {
+  pt: 'Não encontrei uma resposta específica para essa questão. Para suporte direto contacte o serviço técnico SOMENGIL: +351 234797344 ou info@somengil.com.',
+  en: 'I could not find a specific answer to that question. For direct support contact SOMENGIL technical service: +351 234797344 or info@somengil.com.',
+  fr: 'Je n\'ai pas trouvé de réponse spécifique. Pour un support direct contactez le service technique SOMENGIL: +351 234797344 ou info@somengil.com.',
+  es: 'No encontré una respuesta específica. Para soporte directo contacte el servicio técnico SOMENGIL: +351 234797344 o info@somengil.com.'
+};
 function checkNetwork(){
   var el = $('net-status');
   fetch('https://www.google.com/favicon.ico', {mode:'no-cors', cache:'no-store'})
